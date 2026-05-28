@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Ruta Libre",
+    "slug": "ruta-libre",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "ruta-libre",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rutalibre.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#003f87",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.rutalibre.app",
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font"
+    ],
+    "extra": {
+      "expoGoSdkVersion": "54.0.0"
+    }
+  }
+}
