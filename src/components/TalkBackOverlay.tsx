@@ -16,13 +16,13 @@ type Props = {
 };
 
 export function TalkBackOverlay({ targetEnabled, onDone }: Props) {
-  const { reduceMotion } = useAccessibility();
+  const { systemReduceMotion } = useAccessibility();
   const [showBanner, setShowBanner] = useState(false);
   const flashOpacity = useSharedValue(0);
   const borderStagger = useSharedValue(0);
 
   useEffect(() => {
-    if (reduceMotion) {
+    if (systemReduceMotion) {
       onDone();
       return;
     }
@@ -40,13 +40,13 @@ export function TalkBackOverlay({ targetEnabled, onDone }: Props) {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [reduceMotion, onDone, flashOpacity, borderStagger]);
+  }, [systemReduceMotion, onDone, flashOpacity, borderStagger]);
 
   const flashStyle = useAnimatedStyle(() => ({
     opacity: flashOpacity.value,
   }));
 
-  if (!showBanner && reduceMotion) return null;
+  if (!showBanner && systemReduceMotion) return null;
 
   return (
     <>
@@ -77,7 +77,7 @@ export function TalkBackOverlay({ targetEnabled, onDone }: Props) {
 }
 
 function TalkBackBorderHints() {
-  const { reduceMotion } = useAccessibility();
+  const { systemReduceMotion } = useAccessibility();
   const hints = ['header', 'nav', 'content', 'actions'];
 
   return (
@@ -86,7 +86,7 @@ function TalkBackBorderHints() {
         <Animated.View
           key={key}
           entering={
-            reduceMotion
+            systemReduceMotion
               ? undefined
               : FadeIn.delay(index * 30).duration(150)
           }

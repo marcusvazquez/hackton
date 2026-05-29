@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -19,6 +19,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { spacing } from '../theme/colors';
 import { SCROLL_BOTTOM_INSET } from '../theme/layout';
 import { radii } from '../theme/shadows';
+import { playSelectSound } from '../utils/talkbackSounds';
 
 const OFFLINE_AMBER = '#f97316';
 
@@ -27,7 +28,7 @@ type Props = {
 };
 
 export function ReportScreen({ onReportSuccess }: Props) {
-  const { talkBackEnabled, reduceMotion } = useAccessibility();
+  const { talkBackEnabled, reduceMotion, speak } = useAccessibility();
   const { colors, fontBold, fontRegular, isHackathon, spacing: themeSpacing } = useAppTheme();
   const { isOnline } = useNetworkStatus();
   const { addToQueue, syncQueue } = useOfflineContext();
@@ -85,6 +86,18 @@ export function ReportScreen({ onReportSuccess }: Props) {
     setSavedOffline(true);
   };
 
+  const handleSelectBarrier = useCallback(
+    (id: string) => {
+      setSelected(id);
+      if (talkBackEnabled) {
+        playSelectSound();
+        const barrier = BARRIER_TYPES.find((b) => b.id === id);
+        if (barrier) void speak(`${barrier.label} seleccionado`);
+      }
+    },
+    [speak, talkBackEnabled],
+  );
+
   const barrierGrid = (
     <View style={styles.grid}>
       {BARRIER_TYPES.map((barrier, index) => (
@@ -92,7 +105,7 @@ export function ReportScreen({ onReportSuccess }: Props) {
           key={barrier.id}
           barrier={barrier}
           index={index}
-          onSelect={setSelected}
+          onSelect={handleSelectBarrier}
           selected={selected === barrier.id}
         />
       ))}

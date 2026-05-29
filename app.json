@@ -9,7 +9,13 @@
     "scheme": "ruta-libre",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.rutalibre.app"
+      "bundleIdentifier": "com.rutalibre.app",
+      "config": {
+        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Ruta Libre necesita tu ubicación para mostrarte rutas accesibles cercanas y centrar el mapa en tu posición."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,13 +25,29 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.rutalibre.app",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+        }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Ruta Libre necesita acceso a tus fotos para enviar imágenes al asistente y reportes.",
+          "cameraPermission": "Ruta Libre necesita la cámara para tomar fotos de obstáculos y enviarlas al asistente."
+        }
+      ],
       [
         "expo-location",
         {

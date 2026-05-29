@@ -13,6 +13,14 @@ body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after 
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
 }
+body.talkback-mode {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+body.talkback-mode *:focus-visible {
+  outline: 3px solid #ffffff !important;
+  outline-offset: 2px;
+}
 `;
 
 export function ReduceMotionStyles() {

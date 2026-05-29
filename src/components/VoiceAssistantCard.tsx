@@ -47,6 +47,10 @@ export function VoiceAssistantCard() {
   return (
     <Animated.View entering={entering} style={styles.wrapper}>
       <View
+        accessible={true}
+        importantForAccessibility="yes"
+        accessibilityRole="text"
+        accessibilityLabel={`Modo Asistente de Voz Activo. ${getVoiceHint(personType)}`}
         style={[
           styles.card,
           shadows.sm,
@@ -91,7 +95,7 @@ export function VoiceAssistantCard() {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    bottom: mapOverlay.voiceCardBottom,
+    top: mapOverlay.voiceCardTop,
     left: spacing.edge,
     right: spacing.edge,
     zIndex: 20,

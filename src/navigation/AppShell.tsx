@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
+import { AIAssistant } from '../components/AIAssistant';
 import { AppHeader } from '../components/AppHeader';
 import { BottomNav } from '../components/BottomNav';
 import { HackathonBackdrop } from '../components/HackathonBackdrop';
@@ -36,6 +37,16 @@ export function AppShell() {
   const handleReportSuccess = useCallback(() => {
     setActiveTab('mapa');
   }, []);
+
+  const handleViewFeedOnMap = useCallback(
+    (item: FeedItem) => {
+      if (item.lat != null && item.lng != null) {
+        flyTo({ lat: item.lat, lng: item.lng });
+        setActiveTab('mapa');
+      }
+    },
+    [flyTo],
+  );
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -94,6 +105,7 @@ export function AppShell() {
       <View pointerEvents="box-none" style={styles.navLayer}>
         <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
       </View>
+      <AIAssistant activeTab={activeTab} overlay={null} />
     </View>
   );
 }
