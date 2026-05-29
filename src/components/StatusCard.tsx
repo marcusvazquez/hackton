@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { useMapLocation } from '../context/MapLocationContext';
 import { useAnimations } from '../hooks/useAnimations';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { spacing } from '../theme/colors';
@@ -20,11 +21,13 @@ type Props = {
 
 export function StatusCard({ onPressVer }: Props) {
   const { reduceMotion } = useAccessibility();
+  const { flyToZonaCentroBarrera } = useMapLocation();
   const { colors, fontBold, fontRegular } = useAppTheme();
   const { statusCardEnter } = useAnimations();
   const scale = useSharedValue(1);
 
   const handlePress = () => {
+    flyToZonaCentroBarrera();
     if (!reduceMotion) {
       scale.value = withSequence(
         withTiming(0.97, { duration: 75 }),

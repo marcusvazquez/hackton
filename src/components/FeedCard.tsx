@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import React, { useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -9,156 +9,174 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { useAnimations } from '../hooks/useAnimations';
-import { useInView } from '../hooks/useInView';
-import { useAppTheme } from '../hooks/useAppTheme';
 import { FeedItem } from '../data/community';
+import { useAnimations } from '../hooks/useAnimations';
+import { useAppTheme } from '../hooks/useAppTheme';
 import { spacing } from '../theme/colors';
 import { radii, shadows } from '../theme/shadows';
 
 type Props = {
   item: FeedItem;
+  confirmedByMe: boolean;
+  onToggleConfirm: (id: string) => void;
+  onViewOnMap?: (item: FeedItem) => void;
+  premium?: boolean;
 };
 
-export function FeedCard({ item }: Props) {
+export function FeedCard({
+  item,
+  confirmedByMe,
+  onToggleConfirm,
+  onViewOnMap,
+  premium = false,
+}: Props) {
   const { reduceMotion, talkBackEnabled } = useAccessibility();
   const { colors, fontBold, fontRegular, isHackathon } = useAppTheme();
   const { feedEnter } = useAnimations();
-  const { ref, inView } = useInView(0.15);
-  const [count, setCount] = useState(item.confirmations);
-  const [animating, setAnimating] = useState(false);
   const btnScale = useSharedValue(1);
-  const oldY = useSharedValue(0);
-  const oldOpacity = useSharedValue(1);
-  const newY = useSharedValue(-8);
-  const newOpacity = useSharedValue(0);
+
+  const isSafe = item.type === 'seguro';
+  const hasMapCoords = item.lat != null && item.lng != null;
+  const isResolved = item.status === 'solucionado';
+
+  const statusBadgeConfig =
+    item.status === 'reportado'
+      ? { bg: '#f97316', icon: 'warning' as const, label: 'REPORTADO' }
+      : item.status === 'en_revision'
+        ? { bg: colors.surfaceContainerHigh, icon: 'search' as const, label: 'EN REVISIÓN' }
+        : item.status === 'solucionado'
+          ? { bg: colors.safeGreen, icon: 'check-circle' as const, label: 'SOLUCIONADO' }
+          : null;
 
   const handleConfirm = () => {
-    if (animating) return;
-
     if (!reduceMotion) {
       btnScale.value = withSequence(
         withTiming(0.93, { duration: 100 }),
         withTiming(1, { duration: 100 }),
       );
     }
-
-    setAnimating(true);
-
-    if (!reduceMotion) {
-      oldY.value = withTiming(8, { duration: 200 });
-      oldOpacity.value = withTiming(0, { duration: 200 });
-      newY.value = withTiming(0, { duration: 200 });
-      newOpacity.value = withTiming(1, { duration: 200 });
-    }
-
-    setTimeout(() => {
-      setCount((c) => c + 1);
-      oldY.value = 0;
-      oldOpacity.value = 1;
-      newY.value = -8;
-      newOpacity.value = 0;
-      setAnimating(false);
-    }, reduceMotion ? 0 : 200);
+    onToggleConfirm(item.id);
   };
 
   const btnStyle = useAnimatedStyle(() => ({
     transform: [{ scale: btnScale.value }],
   }));
 
-  const oldCountStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: oldY.value }],
-    opacity: oldOpacity.value,
-  }));
-
-  const newCountStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: newY.value }],
-    opacity: newOpacity.value,
-    position: 'absolute',
-  }));
-
-  const isSafe = item.type === 'safe';
-  const visible = inView || Platform.OS !== 'web';
-  const isResolved = item.status === 'solucionado';
-
-  const statusBadgeConfig =
-    item.status === 'reportado'
-      ? { bg: '#f97316', icon: 'warning' as const, label: 'REPORTADO ⚠' }
-      : item.status === 'en_revision'
-        ? { bg: colors.surfaceContainerHigh, icon: 'search' as const, label: 'EN REVISIÓN' }
-        : item.status === 'solucionado'
-          ? { bg: colors.safeGreen, icon: 'check-circle' as const, label: 'SOLUCIONADO ✓' }
-          : null;
+  const cardBg = premium
+    ? confirmedByMe
+      ? { backgroundColor: '#18181b', borderColor: 'rgba(59,130,246,0.4)' }
+      : { backgroundColor: '#09090b', borderColor: '#27272a' }
+    : confirmedByMe
+      ? { backgroundColor: colors.surfaceContainerLowest, borderColor: colors.primary }
+      : { backgroundColor: colors.surfaceContainerLowest, borderColor: colors.outlineVariant };
 
   return (
-    <View ref={ref} collapsable={false} style={!visible ? styles.placeholder : undefined}>
-      {visible ? (
-      <Animated.View
-        entering={!reduceMotion ? feedEnter : undefined}
-        style={[
-          styles.card,
-          item.status ? styles.cardWithStatusBadge : undefined,
-          talkBackEnabled
-            ? styles.cardTalkBack
-            : {
-                backgroundColor: colors.surfaceContainerLowest,
-                borderColor: colors.outlineVariant,
+    <Animated.View
+      entering={!reduceMotion ? feedEnter : undefined}
+      style={[
+        styles.card,
+        item.status ? styles.cardWithStatusBadge : undefined,
+        confirmedByMe && styles.cardConfirmed,
+        talkBackEnabled ? styles.cardTalkBack : cardBg,
+      ]}
+    >
+      {statusBadgeConfig ? (
+        <View style={[styles.statusBadge, { backgroundColor: statusBadgeConfig.bg }]}>
+          <MaterialIcons name={statusBadgeConfig.icon} size={14} color="#ffffff" />
+          <Text style={[styles.statusBadgeText, { fontFamily: fontBold }]}>
+            {statusBadgeConfig.label}
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={styles.headerRow}>
+        <View style={styles.headerLeft}>
+          <Text
+            style={[
+              styles.usuario,
+              { fontFamily: fontBold, color: premium ? '#9ca3af' : colors.primary },
+            ]}
+          >
+            {item.usuario}
+          </Text>
+          <View
+            style={[
+              styles.zonaPill,
+              {
+                backgroundColor: premium ? '#27272a' : colors.surfaceContainerHigh,
+                borderColor: premium ? '#3f3f46' : 'transparent',
+                borderWidth: premium ? 1 : 0,
               },
-        ]}
-      >
-        {statusBadgeConfig ? (
-          <View style={[styles.statusBadge, { backgroundColor: statusBadgeConfig.bg }]}>
-            <MaterialIcons name={statusBadgeConfig.icon} size={14} color="#ffffff" />
-            <Text style={[styles.statusBadgeText, { fontFamily: fontBold }]}>
-              {statusBadgeConfig.label}
+            ]}
+          >
+            <MaterialIcons
+              name="place"
+              size={11}
+              color={premium ? '#60a5fa' : colors.onSurfaceVariant}
+            />
+            <Text
+              style={[
+                styles.zonaText,
+                {
+                  fontFamily: fontBold,
+                  color: premium ? '#d1d5db' : colors.onSurfaceVariant,
+                },
+              ]}
+            >
+              {item.zona}
             </Text>
           </View>
-        ) : null}
+        </View>
+
+        <View style={styles.badgesRow}>
+          {item.isReincidente ? (
+            <View style={[styles.badge, styles.badgeReincidente]}>
+              <Text style={[styles.badgeText, { fontFamily: fontBold }]}>⚠️ Reincidente</Text>
+            </View>
+          ) : null}
+          {item.isAiVerified ? (
+            <View style={[styles.badge, styles.badgeAi]}>
+              <Text style={[styles.badgeText, { fontFamily: fontBold }]}>🤖 IA OK</Text>
+            </View>
+          ) : null}
+          {item.offline && isHackathon ? (
+            <View style={[styles.badge, { borderColor: colors.secondary }]}>
+              <Text style={[styles.badgeText, { fontFamily: fontBold, color: colors.secondary }]}>
+                OFFLINE
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+
+      <View style={styles.bodyRow}>
         {item.imageUrl ? (
           <Image source={{ uri: item.imageUrl }} style={styles.thumbnail} contentFit="cover" />
         ) : null}
-        <View style={[styles.badge, { backgroundColor: isSafe ? colors.safeGreen : colors.secondaryContainer }]}>
-          <MaterialIcons
-            name={isSafe ? 'check-circle' : 'warning'}
-            size={20}
-            color={isSafe ? '#fff' : colors.onSecondaryContainer}
-          />
+        <View
+          style={[
+            styles.iconBox,
+            {
+              backgroundColor: isSafe
+                ? premium
+                  ? 'rgba(16,185,129,0.15)'
+                  : colors.safeGreen + '22'
+                : premium
+                  ? 'rgba(245,158,11,0.15)'
+                  : colors.secondaryContainer,
+            },
+          ]}
+        >
+          <Text style={styles.iconEmoji}>{isSafe ? '✅' : '⚠️'}</Text>
         </View>
         <View style={styles.body}>
-          {(item.author || item.location) && !talkBackEnabled ? (
-            <View style={styles.metaRow}>
-              {item.author ? (
-                <Text style={[styles.author, { fontFamily: fontBold, color: colors.primary }]}>
-                  {item.author}
-                </Text>
-              ) : null}
-              {item.location ? (
-                <View style={styles.locRow}>
-                  <MaterialIcons name="place" size={12} color={colors.onSurfaceVariant} />
-                  <Text style={[styles.location, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
-                    {item.location}
-                  </Text>
-                </View>
-              ) : null}
-              {item.offline && isHackathon ? (
-                <View style={[styles.offlinePill, { borderColor: colors.secondary }]}>
-                  <Text style={[styles.offlinePillText, { fontFamily: fontBold, color: colors.secondary }]}>
-                    OFFLINE
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-          {item.zoneName ? (
-            <Text style={[styles.zoneName, { fontFamily: fontBold, color: colors.primary }]}>
-              {item.zoneName}
-            </Text>
-          ) : null}
           <Text
             style={[
               styles.title,
               { fontFamily: fontBold },
-              talkBackEnabled ? styles.textTalkBack : { color: colors.onSurface },
+              talkBackEnabled
+                ? styles.textTalkBack
+                : { color: premium ? '#ffffff' : colors.onSurface },
             ]}
           >
             {item.title}
@@ -167,122 +185,129 @@ export function FeedCard({ item }: Props) {
             style={[
               styles.description,
               { fontFamily: fontRegular },
-              talkBackEnabled ? styles.subtitleTalkBack : { color: colors.onSurfaceVariant },
+              talkBackEnabled
+                ? styles.subtitleTalkBack
+                : { color: premium ? '#9ca3af' : colors.onSurfaceVariant },
             ]}
           >
             {item.description}
           </Text>
-          {item.tags && item.tags.length > 0 && !talkBackEnabled ? (
-            <View style={styles.tags}>
-              {item.tags.map((tag) => (
-                <View key={tag} style={[styles.tag, { borderColor: colors.outlineVariant }]}>
-                  <Text style={[styles.tagText, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
-                    {tag}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-          <View style={styles.footer}>
-            <Text
+        </View>
+      </View>
+
+      <View
+        style={[
+          styles.divider,
+          { backgroundColor: premium ? '#27272a' : colors.outlineVariant },
+        ]}
+      />
+
+      <View style={styles.footer}>
+        <Text
+          style={[
+            styles.confirmCount,
+            {
+              fontFamily: fontBold,
+              color: premium ? '#6b7280' : colors.onSurfaceVariant,
+            },
+          ]}
+        >
+          ⏱️ {item.timeAgo} · {item.confirmations} verificaciones
+        </Text>
+
+        <View style={styles.footerActions}>
+          {hasMapCoords && onViewOnMap ? (
+            <Pressable
+              accessibilityLabel={`Ver ${item.title} en el mapa`}
+              accessibilityRole="button"
+              onPress={() => onViewOnMap(item)}
               style={[
-                styles.time,
-                { fontFamily: fontRegular },
-                talkBackEnabled ? styles.subtitleTalkBack : { color: colors.outline },
+                styles.mapBtn,
+                {
+                  backgroundColor: premium ? '#18181b' : colors.surfaceContainerHigh,
+                  borderColor: premium ? '#3f3f46' : colors.outlineVariant,
+                },
               ]}
             >
-              {item.timeAgo}
-            </Text>
-            {isResolved ? (
-              <View style={styles.resolvedRow}>
-                <MaterialIcons name="thumb-up" size={20} color={colors.onSurfaceVariant} />
-                <Text style={[styles.resolvedCount, { fontFamily: fontBold, color: colors.onSurfaceVariant }]}>
-                  {count}
-                </Text>
-                <Text style={[styles.resolvedLabel, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
-                  confirmaciones
-                </Text>
-                <MaterialIcons name="share" size={20} color={colors.onSurfaceVariant} />
-                <Text style={[styles.shareLabel, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
-                  Compartir
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.confirmRow}>
-                <View style={styles.countWrap}>
-                  <Animated.Text
-                    style={[
-                      styles.count,
-                      { fontFamily: fontBold, color: colors.primary },
-                      oldCountStyle,
-                    ]}
-                  >
-                    {count}
-                  </Animated.Text>
-                  {!reduceMotion && (
-                    <Animated.Text
-                      style={[
-                        styles.count,
-                        { fontFamily: fontBold, color: colors.primary },
-                        newCountStyle,
-                      ]}
-                    >
-                      {count + 1}
-                    </Animated.Text>
-                  )}
-                </View>
+              <MaterialIcons
+                name="visibility"
+                size={18}
+                color={premium ? '#9ca3af' : colors.onSurfaceVariant}
+              />
+            </Pressable>
+          ) : null}
+
+          {isResolved ? (
+            <View style={styles.resolvedRow}>
+              <MaterialIcons name="thumb-up" size={18} color={colors.onSurfaceVariant} />
+              <Text
+                style={[styles.resolvedCount, { fontFamily: fontBold, color: colors.onSurfaceVariant }]}
+              >
+                {item.confirmations}
+              </Text>
+            </View>
+          ) : (
+            <Animated.View style={btnStyle}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: confirmedByMe }}
+                onPress={handleConfirm}
+                style={[
+                  styles.confirmBtn,
+                  confirmedByMe
+                    ? { backgroundColor: colors.primary }
+                    : premium
+                      ? { backgroundColor: '#ffffff' }
+                      : { backgroundColor: colors.primaryContainer },
+                ]}
+              >
+                <MaterialIcons
+                  name="thumb-up"
+                  size={16}
+                  color={
+                    confirmedByMe
+                      ? colors.onPrimary
+                      : premium
+                        ? '#000000'
+                        : colors.onPrimaryContainer
+                  }
+                />
                 <Text
                   style={[
-                    styles.confirmLabel,
-                    { fontFamily: fontRegular },
-                    talkBackEnabled ? styles.subtitleTalkBack : { color: colors.onSurfaceVariant },
+                    styles.confirmText,
+                    {
+                      fontFamily: fontBold,
+                      color: confirmedByMe
+                        ? colors.onPrimary
+                        : premium
+                          ? '#000000'
+                          : colors.onPrimaryContainer,
+                    },
                   ]}
                 >
-                  {' '}
-                  confirmaciones
+                  {confirmedByMe ? 'Confirmado' : 'Confirmar'}
                 </Text>
-                <Animated.View style={btnStyle}>
-                  <Pressable
-                    onPress={handleConfirm}
-                    style={[styles.confirmBtn, { backgroundColor: colors.primaryContainer }]}
-                  >
-                    <Text
-                      style={[
-                        styles.confirmText,
-                        { fontFamily: fontBold, color: colors.onPrimaryContainer },
-                      ]}
-                    >
-                      Confirmar
-                    </Text>
-                  </Pressable>
-                </Animated.View>
-              </View>
-            )}
-          </View>
+              </Pressable>
+            </Animated.View>
+          )}
         </View>
-      </Animated.View>
-      ) : null}
-    </View>
+      </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  placeholder: {
-    minHeight: 120,
-    marginBottom: spacing.gutter,
-  },
   card: {
-    flexDirection: 'row',
-    gap: 12,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     borderWidth: 1,
     padding: spacing.gutter,
     marginBottom: spacing.gutter,
+    gap: 12,
     position: 'relative',
     ...shadows.sm,
   },
   cardWithStatusBadge: {
-    paddingRight: 110,
+    paddingTop: 36,
   },
   statusBadge: {
     position: 'absolute',
@@ -302,122 +327,145 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   thumbnail: {
-    width: 80,
-    height: 80,
+    width: 72,
+    height: 72,
     borderRadius: 10,
   },
-  zoneName: {
-    fontSize: 11,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 4,
+  cardConfirmed: {
+    borderWidth: 2,
   },
   resolvedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
     gap: 6,
-    flexWrap: 'wrap',
   },
-  resolvedCount: { fontSize: 14 },
-  resolvedLabel: { fontSize: 14, marginRight: 8 },
-  shareLabel: { fontSize: 14 },
+  resolvedCount: {
+    fontSize: 14,
+  },
   cardTalkBack: {
     backgroundColor: '#111111',
     borderColor: '#ffffff44',
   },
-  badge: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 8,
   },
-  body: {
-    flex: 1,
-  },
-  metaRow: {
+  headerLeft: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 6,
+    flex: 1,
   },
-  author: {
-    fontSize: 12,
-  },
-  locRow: {
+  badgesRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
+    flexWrap: 'wrap',
+    gap: 4,
+    justifyContent: 'flex-end',
+    maxWidth: '45%',
   },
-  location: {
-    fontSize: 12,
-  },
-  offlinePill: {
+  badge: {
     borderWidth: 1,
-    borderRadius: 4,
+    borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  offlinePillText: {
+  badgeReincidente: {
+    backgroundColor: 'rgba(245,158,11,0.1)',
+    borderColor: 'rgba(245,158,11,0.25)',
+  },
+  badgeAi: {
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    borderColor: 'rgba(16,185,129,0.25)',
+  },
+  badgeText: {
     fontSize: 9,
-    letterSpacing: 1,
+    color: '#e5e7eb',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  tags: {
+  usuario: {
+    fontSize: 12,
+  },
+  zonaPill: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 8,
-  },
-  tag: {
-    borderWidth: 1,
-    borderRadius: radii.sm,
+    alignItems: 'center',
+    gap: 3,
     paddingHorizontal: 8,
     paddingVertical: 3,
+    borderRadius: 999,
   },
-  tagText: {
-    fontSize: 11,
+  zonaText: {
+    fontSize: 10,
+  },
+  bodyRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconEmoji: {
+    fontSize: 18,
+  },
+  body: {
+    flex: 1,
   },
   title: {
     fontSize: 16,
+    lineHeight: 22,
   },
   description: {
-    fontSize: 14,
+    fontSize: 13,
     marginTop: 4,
+    lineHeight: 19,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    width: '100%',
   },
   footer: {
-    marginTop: 12,
-  },
-  time: {
-    fontSize: 12,
-  },
-  confirmRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    flexWrap: 'wrap',
-    gap: 4,
+    justifyContent: 'space-between',
+    gap: 8,
   },
-  countWrap: {
-    height: 20,
-    overflow: 'hidden',
-    minWidth: 16,
+  footerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  count: {
-    fontSize: 14,
-  },
-  confirmLabel: {
-    fontSize: 14,
+  confirmCount: {
+    fontSize: 10,
     flex: 1,
   },
+  mapBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   confirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radii.sm,
+    paddingVertical: 10,
+    borderRadius: radii.md,
   },
   confirmText: {
-    fontSize: 14,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   textTalkBack: {
     color: '#ffffff',

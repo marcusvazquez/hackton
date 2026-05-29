@@ -1,45 +1,78 @@
-import type { DivIcon } from 'leaflet';
+import type { CircleMarkerOptions } from 'leaflet';
 import { IncidentType } from '../../data/mapIncidents';
+import type { PointCategory } from '../../data/tijuanaRoutesDB';
 
-const INCIDENT_STYLES: Record<
-  IncidentType,
-  { bg: string; border: string; glyph: string }
-> = {
-  rampa_ok: { bg: '#16a34a', border: '#ffffff', glyph: '✓' },
-  rampa_bloqueada: { bg: '#dc2626', border: '#ffffff', glyph: '✕' },
-  acera_rota: { bg: '#d97706', border: '#ffffff', glyph: '!' },
+const INCIDENT_COLORS: Record<IncidentType, string> = {
+  rampa_ok: '#16a34a',
+  rampa_bloqueada: '#dc2626',
+  acera_rota: '#d97706',
 };
 
-export function createIncidentIcon(
-  L: typeof import('leaflet'),
-  type: IncidentType,
-): DivIcon {
-  const style = INCIDENT_STYLES[type];
-  return L.divIcon({
-    className: 'ruta-libre-incident-icon',
-    html: `<div style="
-      width:40px;height:40px;border-radius:12px;
-      background:${style.bg};border:2px solid ${style.border};
-      display:flex;align-items:center;justify-content:center;
-      color:#fff;font-weight:700;font-size:18px;
-      box-shadow:0 4px 12px rgba(0,0,0,0.45);
-      font-family:system-ui,sans-serif;
-    ">${style.glyph}</div>`,
-    iconSize: [40, 40],
-    iconAnchor: [20, 40],
-    popupAnchor: [0, -42],
-  });
+const CATEGORY_COLORS: Record<PointCategory, string> = {
+  transporte: '#00E676',
+  salud: '#18FFFF',
+  gobierno: '#7C4DFF',
+  barrera_critica: '#FF1744',
+  barrera_motriz: '#FF5252',
+  barrera_vision: '#FF9100',
+  general: '#94A3B8',
+};
+
+export function getPointMarkerColor(
+  type: 'punto_accesible' | 'barrera',
+  category?: PointCategory,
+): string {
+  if (category && category in CATEGORY_COLORS) {
+    return CATEGORY_COLORS[category];
+  }
+  return type === 'punto_accesible' ? '#00E676' : '#FF5252';
 }
 
-export function createUserLocationIcon(L: typeof import('leaflet')): DivIcon {
+export function getCircleMarkerOptions(
+  type: 'punto_accesible' | 'barrera',
+  category?: PointCategory,
+): CircleMarkerOptions {
+  const fillColor = getPointMarkerColor(type, category);
+  const isCritical =
+    category === 'barrera_critica' ||
+    category === 'barrera_motriz' ||
+    category === 'barrera_vision';
+
+  return {
+    radius: isCritical ? 12 : type === 'punto_accesible' ? 10 : 9,
+    fillColor,
+    color: '#ffffff',
+    weight: 2,
+    opacity: 1,
+    fillOpacity: 0.95,
+    interactive: true,
+    bubblingMouseEvents: false,
+  };
+}
+
+export function getIncidentCircleOptions(type: IncidentType): CircleMarkerOptions {
+  return {
+    radius: 13,
+    fillColor: INCIDENT_COLORS[type],
+    color: '#ffffff',
+    weight: 3,
+    opacity: 1,
+    fillOpacity: 0.95,
+    interactive: true,
+    bubblingMouseEvents: false,
+  };
+}
+
+export function createUserLocationIcon(L: typeof import('leaflet')) {
   return L.divIcon({
-    className: 'ruta-libre-user-icon',
+    className: 'ruta-libre-user-location-pin',
     html: `<div style="
-      width:18px;height:18px;border-radius:50%;
+      width:22px;height:22px;border-radius:50%;
       background:#00e5ff;border:3px solid #fff;
       box-shadow:0 0 0 6px rgba(0,229,255,0.35), 0 2px 8px rgba(0,0,0,0.4);
+      pointer-events:auto;
     "></div>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
   });
 }

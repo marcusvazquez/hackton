@@ -1,6 +1,7 @@
 export const TIJUANA_CENTER = { lat: 32.5149, lng: -117.0382 } as const;
 
-export const DEFAULT_MAP_ZOOM = 15;
+/** Zoom inicial: vista metropolitana de Tijuana */
+export const DEFAULT_MAP_ZOOM = 12;
 
 export const FLY_TO_ZOOM = 16;
 

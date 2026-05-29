@@ -1,39 +1,98 @@
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import React from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FeedCard } from '../components/FeedCard';
-import { NetStatusBanner } from '../components/NetStatusBanner';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { useOfflineContext } from '../context/OfflineContext';
-import { FEED_ITEMS } from '../data/community';
+import {
+  CategoryTab,
+  COMMUNITY_CATEGORY_TABS,
+  COMMUNITY_ZONES,
+  FEED_ITEMS,
+  FeedItem,
+  filterFeedByCategory,
+  filterFeedByZone,
+  INITIAL_USER_POINTS,
+  POINTS_PER_CONFIRM,
+} from '../data/community';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { spacing } from '../theme/colors';
 import { SCROLL_BOTTOM_INSET } from '../theme/layout';
-import { radii } from '../theme/shadows';
+import { radii, shadows } from '../theme/shadows';
+
+type FilterZone = (typeof COMMUNITY_ZONES)[number];
 
 type Props = {
   onGoToReport?: () => void;
+  onViewOnMap?: (item: FeedItem) => void;
 };
 
-export function CommunityScreen({ onGoToReport }: Props) {
+export function CommunityScreen({ onGoToReport, onViewOnMap }: Props) {
   const { talkBackEnabled } = useAccessibility();
   const { colors, fontBold, fontRegular, isHackathon } = useAppTheme();
   const { isOnline } = useNetworkStatus();
-  const { syncQueue } = useOfflineContext();
-  const pendingSync = syncQueue.filter((item) => item.status === 'pending').length;
-  const offlineCount = FEED_ITEMS.filter((i) => i.offline).length;
+
+  const [activeCategory, setActiveCategory] = useState<CategoryTab>('todos');
+  const [filtroZona, setFiltroZona] = useState<FilterZone>('Todos');
+  const [usuarioPuntos, setUsuarioPuntos] = useState(INITIAL_USER_POINTS);
+  const [reportes, setReportes] = useState<FeedItem[]>(FEED_ITEMS);
+  const [confirmados, setConfirmados] = useState<Record<string, boolean>>({});
+
+  const reportesFiltrados = useMemo(() => {
+    const byCategory = filterFeedByCategory(reportes, activeCategory);
+    return filterFeedByZone(byCategory, filtroZona);
+  }, [reportes, activeCategory, filtroZona]);
+
+  const handleConfirmar = useCallback(
+    (id: string) => {
+      const yaConfirmado = confirmados[id] ?? false;
+
+      setReportes((prev) =>
+        prev.map((rep) =>
+          rep.id === id
+            ? {
+                ...rep,
+                confirmations: yaConfirmado
+                  ? rep.confirmations - 1
+                  : rep.confirmations + 1,
+              }
+            : rep,
+        ),
+      );
+
+      setConfirmados((prev) => ({ ...prev, [id]: !yaConfirmado }));
+      setUsuarioPuntos((prev) =>
+        yaConfirmado ? prev - POINTS_PER_CONFIRM : prev + POINTS_PER_CONFIRM,
+      );
+    },
+    [confirmados],
+  );
+
+  const premium = isHackathon && !talkBackEnabled;
 
   return (
     <View
       style={[
-        styles.wrapper,
-        talkBackEnabled ? styles.containerTalkBack : { backgroundColor: colors.background },
+        styles.container,
+        talkBackEnabled
+          ? styles.containerTalkBack
+          : premium
+            ? styles.containerPremium
+            : { backgroundColor: colors.background },
       ]}
     >
-      <ScrollView contentContainerStyle={styles.content}>
-        <NetStatusBanner />
-
+      <ScrollView
+        contentContainerStyle={styles.content}
+        style={styles.listScroll}
+        stickyHeaderIndices={premium ? undefined : [0]}
+      >
         {!isOnline ? (
           <View
             style={[
@@ -56,83 +115,211 @@ export function CommunityScreen({ onGoToReport }: Props) {
           </View>
         ) : null}
 
-        <View style={styles.headerRow}>
-          <Text
-            style={[
-              styles.communityTitle,
-              { fontFamily: fontBold, color: talkBackEnabled ? '#ffffff' : colors.onSurface },
-            ]}
-          >
-            Actividad Comunitaria
-          </Text>
-          <Pressable accessibilityRole="button" style={styles.filterBtn}>
-            <MaterialIcons name="tune" size={20} color={colors.primary} />
-            <Text style={[styles.filterText, { fontFamily: fontRegular, color: colors.primary }]}>
-              Filtrar
-            </Text>
-          </Pressable>
-        </View>
-
-        {isHackathon && (offlineCount > 0 || pendingSync > 0) ? (
+        {!premium ? (
           <View
             style={[
-              styles.offlineBadge,
-              { borderColor: colors.secondary, backgroundColor: colors.secondaryFixed },
+              styles.topHeader,
+              shadows.sm,
+              talkBackEnabled
+                ? styles.headerTalkBack
+                : { backgroundColor: colors.surface, borderBottomColor: colors.outlineVariant },
             ]}
           >
-            <Text style={[styles.offlineText, { fontFamily: fontBold, color: colors.secondary }]}>
-              SYS.OFFLINE
-            </Text>
-            <Text
+            <View style={styles.headerTitleRow}>
+              <View style={[styles.liveDot, { backgroundColor: colors.safeGreen }]} />
+              <Text style={[styles.headerTitle, { fontFamily: fontBold, color: colors.onSurface }]}>
+                Reportes de Comunidad
+              </Text>
+            </View>
+            <View
               style={[
-                styles.offlineSub,
-                { fontFamily: fontRegular, color: colors.onSecondaryFixed },
+                styles.pointsBadge,
+                { backgroundColor: colors.secondaryFixed, borderColor: colors.secondary },
               ]}
             >
-              {pendingSync || offlineCount} en cola
+              <MaterialIcons name="emoji-events" size={16} color={colors.onSecondaryFixed} />
+              <Text style={[styles.pointsText, { fontFamily: fontBold, color: colors.onSecondaryFixed }]}>
+                {usuarioPuntos} pts
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {premium ? (
+          <View style={styles.auditPanel}>
+            <View style={styles.auditHeader}>
+              <MaterialIcons name="auto-awesome" size={16} color="#fbbf24" />
+              <Text style={[styles.auditLabel, { fontFamily: fontBold }]}>
+                Auditoría Ciudadana Digital
+              </Text>
+            </View>
+            <Text style={[styles.auditTitle, { fontFamily: fontBold }]}>
+              Validación Colectiva
+            </Text>
+            <Text style={[styles.auditDesc, { fontFamily: fontRegular }]}>
+              Confirma los reportes activos de otros usuarios para actualizar el mapa interactivo
+              de Tijuana en tiempo real.
+            </Text>
+            <View style={styles.auditPointsRow}>
+              <MaterialIcons name="emoji-events" size={18} color="#fbbf24" />
+              <Text style={[styles.auditPoints, { fontFamily: fontBold }]}>
+                {usuarioPuntos} pts ciudadanos
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.filtersRow,
+            premium
+              ? styles.filtersRowPremium
+              : { backgroundColor: colors.surface, borderBottomColor: colors.outlineVariant },
+          ]}
+          style={styles.filtersScroll}
+        >
+          {COMMUNITY_CATEGORY_TABS.map((tab) => {
+            const active = activeCategory === tab.id;
+            return (
+              <Pressable
+                key={tab.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                onPress={() => setActiveCategory(tab.id)}
+                style={[
+                  styles.filterChip,
+                  premium
+                    ? active
+                      ? styles.filterChipPremiumActive
+                      : styles.filterChipPremium
+                    : active
+                      ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                      : {
+                          backgroundColor: colors.surfaceContainerHigh,
+                          borderColor: colors.outlineVariant,
+                        },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    {
+                      fontFamily: fontBold,
+                      color: premium
+                        ? active
+                          ? '#000000'
+                          : '#9ca3af'
+                        : active
+                          ? colors.onPrimary
+                          : colors.onSurfaceVariant,
+                    },
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.filtersRow,
+            premium ? styles.filtersRowPremium : { paddingTop: 0 },
+          ]}
+          style={styles.filtersScroll}
+        >
+          {COMMUNITY_ZONES.map((zona) => {
+            const active = filtroZona === zona;
+            return (
+              <Pressable
+                key={zona}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                onPress={() => setFiltroZona(zona)}
+                style={[
+                  styles.filterChip,
+                  styles.zoneChip,
+                  premium
+                    ? active
+                      ? styles.filterChipPremiumActive
+                      : styles.filterChipPremium
+                    : active
+                      ? { backgroundColor: colors.secondary, borderColor: colors.secondary }
+                      : {
+                          backgroundColor: colors.surfaceContainerHigh,
+                          borderColor: colors.outlineVariant,
+                        },
+                ]}
+              >
+                <MaterialIcons
+                  name={zona === 'Todos' ? 'public' : 'place'}
+                  size={13}
+                  color={
+                    premium
+                      ? active
+                        ? '#000000'
+                        : '#9ca3af'
+                      : active
+                        ? colors.onSecondary
+                        : colors.onSurfaceVariant
+                  }
+                />
+                <Text
+                  style={[
+                    styles.filterText,
+                    {
+                      fontFamily: fontBold,
+                      color: premium
+                        ? active
+                          ? '#000000'
+                          : '#9ca3af'
+                        : active
+                          ? colors.onSecondary
+                          : colors.onSurfaceVariant,
+                    },
+                  ]}
+                >
+                  {zona === 'Todos' ? 'Todas las zonas' : zona}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {reportesFiltrados.map((item) => (
+          <FeedCard
+            key={item.id}
+            item={item}
+            premium={premium}
+            confirmedByMe={confirmados[item.id] ?? false}
+            onToggleConfirm={handleConfirmar}
+            onViewOnMap={onViewOnMap}
+          />
+        ))}
+
+        {reportesFiltrados.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyEmoji}>📭</Text>
+            <Text
+              style={[
+                styles.emptyText,
+                {
+                  fontFamily: fontRegular,
+                  color: premium ? '#9ca3af' : colors.onSurfaceVariant,
+                },
+              ]}
+            >
+              No hay reportes activos en esta categoría o zona.
             </Text>
           </View>
         ) : null}
 
-        {isHackathon ? (
-          <View style={[styles.statsRow, { borderColor: colors.outlineVariant }]}>
-            <View style={styles.stat}>
-              <MaterialIcons name="groups" size={20} color={colors.primary} />
-              <Text style={[styles.statValue, { fontFamily: fontBold, color: colors.onSurface }]}>
-                {FEED_ITEMS.length}
-              </Text>
-              <Text
-                style={[
-                  styles.statLabel,
-                  { fontFamily: fontRegular, color: colors.onSurfaceVariant },
-                ]}
-              >
-                activos
-              </Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: colors.outlineVariant }]} />
-            <View style={styles.stat}>
-              <MaterialIcons name="verified" size={20} color={colors.safeGreen} />
-              <Text style={[styles.statValue, { fontFamily: fontBold, color: colors.onSurface }]}>
-                {FEED_ITEMS.filter((i) => i.type === 'safe').length}
-              </Text>
-              <Text
-                style={[
-                  styles.statLabel,
-                  { fontFamily: fontRegular, color: colors.onSurfaceVariant },
-                ]}
-              >
-                verificados
-              </Text>
-            </View>
-          </View>
-        ) : null}
-
-        {FEED_ITEMS.map((item) => (
-          <FeedCard key={item.id} item={item} />
-        ))}
-
-        {Platform.OS === 'web' && <View style={{ height: 80 }} />}
+        {Platform.OS === 'web' ? <View style={{ height: 80 }} /> : null}
       </ScrollView>
 
       <Pressable
@@ -147,8 +334,133 @@ export function CommunityScreen({ onGoToReport }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1 },
-  containerTalkBack: { backgroundColor: '#000000' },
+  container: {
+    flex: 1,
+  },
+  containerTalkBack: {
+    backgroundColor: '#000000',
+  },
+  containerPremium: {
+    backgroundColor: '#000000',
+  },
+  topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.edge,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 0,
+  },
+  headerTalkBack: {
+    backgroundColor: '#111111',
+    borderBottomColor: '#333333',
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  liveDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+  },
+  headerTitle: {
+    fontSize: 18,
+  },
+  pointsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+  },
+  pointsText: {
+    fontSize: 12,
+  },
+  auditPanel: {
+    marginBottom: spacing.gutter,
+    padding: 16,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(30,58,138,0.4)',
+    backgroundColor: '#0f172a',
+    ...shadows.md,
+  },
+  auditHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  auditLabel: {
+    fontSize: 10,
+    color: '#60a5fa',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  auditTitle: {
+    fontSize: 18,
+    color: '#ffffff',
+    marginTop: 6,
+  },
+  auditDesc: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  auditPointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+  },
+  auditPoints: {
+    fontSize: 13,
+    color: '#fbbf24',
+  },
+  filtersScroll: {
+    flexGrow: 0,
+  },
+  filtersRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: spacing.edge,
+    paddingVertical: 10,
+    marginBottom: 4,
+  },
+  filtersRowPremium: {
+    paddingTop: 0,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+  },
+  filterChipPremium: {
+    backgroundColor: '#18181b',
+    borderColor: '#27272a',
+  },
+  filterChipPremiumActive: {
+    backgroundColor: '#ffffff',
+    borderColor: '#ffffff',
+  },
+  zoneChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  filterText: {
+    fontSize: 11,
+  },
+  listScroll: {
+    flex: 1,
+  },
   content: {
     padding: spacing.edge,
     paddingBottom: SCROLL_BOTTOM_INSET,
@@ -158,51 +470,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     padding: spacing.gutter,
     marginBottom: spacing.gutter,
-    marginTop: spacing.gutter,
   },
   offlineNoticeText: {
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 22,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.gutter,
-    marginBottom: spacing.gutter,
-    gap: 12,
-  },
-  communityTitle: { fontSize: 18, flex: 1 },
-  filterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-  },
-  filterText: { fontSize: 14 },
-  offlineBadge: {
-    borderWidth: 1,
-    borderRadius: radii.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    alignItems: 'center',
-    marginBottom: spacing.gutter,
-  },
-  offlineText: { fontSize: 9, letterSpacing: 1.5 },
-  offlineSub: { fontSize: 10, marginTop: 2 },
-  statsRow: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderRadius: radii.lg,
-    padding: spacing.gutter,
-    marginBottom: spacing.gutter,
-  },
-  stat: { flex: 1, alignItems: 'center', gap: 4 },
-  statDivider: { width: 1, marginHorizontal: 8 },
-  statValue: { fontSize: 20 },
-  statLabel: { fontSize: 12 },
   fab: {
     position: 'absolute',
     bottom: 16,
@@ -213,5 +486,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 6,
+  },
+  empty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    gap: 12,
+  },
+  emptyEmoji: {
+    fontSize: 40,
+  },
+  emptyText: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 280,
   },
 });

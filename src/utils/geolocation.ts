@@ -28,11 +28,13 @@ export function getGeolocationErrorMessage(error: unknown): string {
       case 'unsupported':
         return 'Tu dispositivo o navegador no admite geolocalización.';
       case 'permission_denied':
-        return 'Permiso de ubicación denegado. Actívalo en ajustes del navegador o del sistema.';
+        return 'Permiso de ubicación denegado. Haz clic en el candado de la barra de direcciones y permite "Ubicación" para localhost.';
       case 'position_unavailable':
-        return 'No se pudo obtener tu ubicación. Intenta en un lugar con mejor señal GPS.';
+        return Platform.OS === 'web'
+          ? 'No se detectó ubicación. En PC: activa Ubicación en Windows (Configuración → Privacidad → Ubicación) y recarga la página. También puedes escribir tu dirección manualmente.'
+          : 'No se pudo obtener tu ubicación. Activa el GPS o escribe tu dirección manualmente.';
       case 'timeout':
-        return 'La solicitud de ubicación tardó demasiado. Vuelve a intentarlo.';
+        return 'La solicitud tardó demasiado. Comprueba tu conexión e inténtalo de nuevo.';
       default:
         return 'Ocurrió un error al obtener tu ubicación.';
     }
@@ -60,7 +62,13 @@ function mapWebError(code: number): GeolocationError {
   }
 }
 
-function getPositionWeb(): Promise<Coordinates> {
+type WebGeoOptions = {
+  enableHighAccuracy: boolean;
+  timeout: number;
+  maximumAge: number;
+};
+
+function tryGetPositionWeb(options: WebGeoOptions): Promise<Coordinates> {
   return new Promise((resolve, reject) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       reject(
@@ -80,17 +88,55 @@ function getPositionWeb(): Promise<Coordinates> {
         });
       },
       (err) => reject(mapWebError(err.code)),
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-      },
+      options,
     );
   });
 }
 
+/**
+ * Web: intenta GPS preciso y, si falla, ubicación aproximada (Wi‑Fi/IP).
+ * En laptop/PC sin GPS el modo preciso suele devolver error 2.
+ */
+async function getPositionWeb(): Promise<Coordinates> {
+  try {
+    return await tryGetPositionWeb({
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 0,
+    });
+  } catch (firstError) {
+    if (
+      firstError instanceof GeolocationError &&
+      firstError.code === 'permission_denied'
+    ) {
+      throw firstError;
+    }
+
+    try {
+      return await tryGetPositionWeb({
+        enableHighAccuracy: false,
+        timeout: 20000,
+        maximumAge: 300000,
+      });
+    } catch (secondError) {
+      throw secondError instanceof GeolocationError
+        ? secondError
+        : firstError;
+    }
+  }
+}
+
 async function getPositionNative(): Promise<Coordinates> {
   const Location = await import('expo-location');
+
+  const servicesEnabled = await Location.hasServicesEnabledAsync();
+  if (!servicesEnabled) {
+    throw new GeolocationError(
+      'position_unavailable',
+      'Servicios de ubicación desactivados en el dispositivo.',
+    );
+  }
+
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== 'granted') {
     throw new GeolocationError(
@@ -99,14 +145,23 @@ async function getPositionNative(): Promise<Coordinates> {
     );
   }
 
-  const position = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.High,
-  });
-
-  return {
-    latitude: position.coords.latitude,
-    longitude: position.coords.longitude,
-  };
+  try {
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    };
+  } catch {
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Low,
+    });
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    };
+  }
 }
 
 /** Obtiene coordenadas en tiempo real (web: navigator.geolocation; nativo: expo-location). */

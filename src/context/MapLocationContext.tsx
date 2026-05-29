@@ -5,7 +5,11 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { DEFAULT_MAP_ZOOM, FLY_TO_ZOOM, TIJUANA_CENTER } from '../constants/map';
+import { DEFAULT_MAP_ZOOM, FLY_TO_ZOOM } from '../constants/map';
+import {
+  DEFAULT_MAP_CENTER,
+  resolveTijuanaSearch,
+} from '../data/tijuanaRoutesDB';
 import { getUserCoordinates, getGeolocationErrorMessage } from '../utils/geolocation';
 import {
   forwardGeocode,
@@ -26,18 +30,23 @@ type MapLocationContextValue = {
   flyTarget: FlyTarget | null;
   locationLoading: boolean;
   locationError: string | null;
-  flyTo: (coords: LatLng, zoom?: number) => void;
+  talkbackText: string;
+  flyTo: (coords: LatLng, zoom?: number, talkback?: string) => void;
   locateUser: () => Promise<{ address: string; coords: LatLng }>;
   geocodeAndFly: (query: string) => Promise<void>;
+  flyToZonaCentroBarrera: () => void;
   clearLocationError: () => void;
 };
 
 const MapLocationContext = createContext<MapLocationContextValue | null>(null);
 
+const INITIAL_TALKBACK =
+  'Mapa interactivo de Ruta Libre cargado. Posicionado en Tijuana, Zona Centro.';
+
 export function MapLocationProvider({ children }: { children: React.ReactNode }) {
   const [center, setCenter] = useState<LatLng>({
-    lat: TIJUANA_CENTER.lat,
-    lng: TIJUANA_CENTER.lng,
+    lat: DEFAULT_MAP_CENTER.lat,
+    lng: DEFAULT_MAP_CENTER.lng,
   });
   const [zoom, setZoom] = useState(DEFAULT_MAP_ZOOM);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
@@ -46,21 +55,26 @@ export function MapLocationProvider({ children }: { children: React.ReactNode })
   const [flyKey, setFlyKey] = useState(0);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [talkbackText, setTalkbackText] = useState(INITIAL_TALKBACK);
 
-  const flyTo = useCallback((coords: LatLng, targetZoom = FLY_TO_ZOOM) => {
-    setCenter(coords);
-    setZoom(targetZoom);
-    setFlyKey((k) => {
-      const next = k + 1;
-      setFlyTarget({
-        lat: coords.lat,
-        lng: coords.lng,
-        zoom: targetZoom,
-        key: next,
+  const flyTo = useCallback(
+    (coords: LatLng, targetZoom = FLY_TO_ZOOM, talkback?: string) => {
+      setCenter(coords);
+      setZoom(targetZoom);
+      if (talkback) setTalkbackText(talkback);
+      setFlyKey((k) => {
+        const next = k + 1;
+        setFlyTarget({
+          lat: coords.lat,
+          lng: coords.lng,
+          zoom: targetZoom,
+          key: next,
+        });
+        return next;
       });
-      return next;
-    });
-  }, []);
+    },
+    [],
+  );
 
   const locateUser = useCallback(async () => {
     setLocationLoading(true);
@@ -71,7 +85,11 @@ export function MapLocationProvider({ children }: { children: React.ReactNode })
       const address = await reverseGeocode(latitude, longitude);
       setUserLocation(coords);
       setUserAddress(address);
-      flyTo(coords, FLY_TO_ZOOM);
+      flyTo(
+        coords,
+        FLY_TO_ZOOM,
+        `Ubicación actual detectada: ${address}`,
+      );
       return { address, coords };
     } catch (error) {
       const message = getGeolocationErrorMessage(error);
@@ -84,20 +102,52 @@ export function MapLocationProvider({ children }: { children: React.ReactNode })
 
   const geocodeAndFly = useCallback(
     async (query: string) => {
-      if (query in PLACE_COORDINATES) {
-        flyTo(resolvePlaceCoordinates(query), FLY_TO_ZOOM);
+      const trimmed = query.trim();
+      if (!trimmed) return;
+
+      const tijuanaHit = resolveTijuanaSearch(trimmed);
+      if (tijuanaHit) {
+        flyTo(
+          { lat: tijuanaHit.lat, lng: tijuanaHit.lng },
+          tijuanaHit.zoom,
+          tijuanaHit.talkback,
+        );
         return;
       }
 
-      const result = await forwardGeocode(query);
+      if (trimmed in PLACE_COORDINATES) {
+        flyTo(
+          resolvePlaceCoordinates(trimmed),
+          FLY_TO_ZOOM,
+          `Buscando ${trimmed} en Tijuana.`,
+        );
+        return;
+      }
+
+      const result = await forwardGeocode(trimmed);
       if (result) {
-        flyTo({ lat: result.lat, lng: result.lng }, FLY_TO_ZOOM);
+        flyTo(
+          { lat: result.lat, lng: result.lng },
+          FLY_TO_ZOOM,
+          `Buscando ${trimmed} en Tijuana. Actualizando coordenadas en el mapa.`,
+        );
       } else {
-        flyTo(resolvePlaceCoordinates(query), FLY_TO_ZOOM);
+        flyTo(
+          resolvePlaceCoordinates(trimmed),
+          FLY_TO_ZOOM,
+          `Buscando ${trimmed} en Tijuana.`,
+        );
       }
     },
     [flyTo],
   );
+
+  const flyToZonaCentroBarrera = useCallback(() => {
+    const dest = resolveTijuanaSearch('calle 2da');
+    if (dest) {
+      flyTo({ lat: dest.lat, lng: dest.lng }, dest.zoom, dest.talkback);
+    }
+  }, [flyTo]);
 
   const clearLocationError = useCallback(() => setLocationError(null), []);
 
@@ -107,14 +157,14 @@ export function MapLocationProvider({ children }: { children: React.ReactNode })
       zoom,
       userLocation,
       userAddress,
-      flyTarget: flyTarget
-        ? { ...flyTarget, key: flyKey }
-        : null,
+      flyTarget: flyTarget ? { ...flyTarget, key: flyKey } : null,
       locationLoading,
       locationError,
+      talkbackText,
       flyTo,
       locateUser,
       geocodeAndFly,
+      flyToZonaCentroBarrera,
       clearLocationError,
     }),
     [
@@ -126,9 +176,11 @@ export function MapLocationProvider({ children }: { children: React.ReactNode })
       flyKey,
       locationLoading,
       locationError,
+      talkbackText,
       flyTo,
       locateUser,
       geocodeAndFly,
+      flyToZonaCentroBarrera,
       clearLocationError,
     ],
   );
