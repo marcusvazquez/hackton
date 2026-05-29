@@ -20,7 +20,7 @@ import { AccessibilityProvider, useAccessibility } from './src/context/Accessibi
 import { OfflineProvider } from './src/context/OfflineContext';
 import { CommunityScreen } from './src/screens/CommunityScreen';
 import { DetailScreen } from './src/screens/DetailScreen';
-import { ExpertModeScreen } from './src/screens/ExpertModeScreen';
+import { ExpertModeModal } from './src/screens/ExpertModeModal';
 import { MapScreen } from './src/screens/MapScreen';
 import { PersonTypeScreen } from './src/screens/PersonTypeScreen';
 import { PlanearScreen } from './src/screens/PlanearScreen';
@@ -80,7 +80,7 @@ function AppShell() {
       <View style={shellStyle}>
         <HackathonBackdrop />
         <StatusBar style={statusStyle} />
-        <ExpertModeScreen onClose={() => setOverlay(null)} />
+        <ExpertModeModal onClose={() => setOverlay(null)} />
       </View>
     );
   }

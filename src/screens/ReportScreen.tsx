@@ -28,7 +28,7 @@ type Props = {
 
 export function ReportScreen({ onReportSuccess }: Props) {
   const { talkBackEnabled, reduceMotion } = useAccessibility();
-  const { colors, fontBold, fontRegular, isHackathon } = useAppTheme();
+  const { colors, fontBold, fontRegular, isHackathon, spacing } = useAppTheme();
   const { isOnline } = useNetworkStatus();
   const { addToQueue, syncQueue } = useOfflineContext();
   const [selected, setSelected] = useState<string | null>(null);
@@ -73,7 +73,6 @@ export function ReportScreen({ onReportSuccess }: Props) {
   }));
 
   const gray = colors.onSurfaceVariant;
-  const pendingCount = syncQueue.filter((item) => item.status === 'pending').length;
 
   const handleSaveOffline = () => {
     if (!selected) return;
@@ -150,7 +149,16 @@ export function ReportScreen({ onReportSuccess }: Props) {
         </>
       ) : (
         <>
-          <View style={styles.offlineStatusBar}>
+          <View
+            style={[
+              styles.offlineStatusBar,
+              {
+                backgroundColor: OFFLINE_AMBER,
+                paddingVertical: spacing.gutter / 2,
+                paddingHorizontal: spacing.edge,
+              },
+            ]}
+          >
             <Text style={[styles.offlineStatusText, { fontFamily: fontBold }]}>
               ESTADO: FUERA DE LÍNEA
             </Text>
@@ -244,7 +252,7 @@ export function ReportScreen({ onReportSuccess }: Props) {
 
           <View style={styles.pillsRow}>
             <View style={[styles.pill, { backgroundColor: colors.surfaceContainerHigh }]}>
-              <MaterialIcons name="photo-camera" size={16} color={colors.onSurface} />
+              <MaterialIcons name="camera" size={16} color={colors.onSurface} />
               <Text
                 style={[
                   styles.pillText,
@@ -305,7 +313,7 @@ export function ReportScreen({ onReportSuccess }: Props) {
               </Text>
               <View style={[styles.savedPill, { backgroundColor: colors.surfaceContainerHigh }]}>
                 <Text style={[styles.savedPillText, { fontFamily: fontRegular, color: gray }]}>
-                  Cola en Marcha · {pendingCount} pendiente(s)
+                  Cola en Marcha · {syncQueue.length} pendiente(s)
                 </Text>
               </View>
             </View>
@@ -407,9 +415,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   offlineStatusBar: {
-    backgroundColor: OFFLINE_AMBER,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
