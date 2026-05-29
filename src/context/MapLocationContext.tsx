@@ -41,7 +41,7 @@ type MapLocationContextValue = {
 const MapLocationContext = createContext<MapLocationContextValue | null>(null);
 
 const INITIAL_TALKBACK =
-  'Mapa interactivo de Ruta Libre cargado. Posicionado en Tijuana, Zona Centro.';
+  'Mapa interactivo de ParaTodos cargado. Posicionado en Tijuana, Zona Centro.';
 
 export function MapLocationProvider({ children }: { children: React.ReactNode }) {
   const [center, setCenter] = useState<LatLng>({

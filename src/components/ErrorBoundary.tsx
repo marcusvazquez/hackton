@@ -20,7 +20,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('[Ruta Libre]', error, info.componentStack);
+    console.error('[ParaTodos]', error, info.componentStack);
   }
 
   render() {

@@ -1,16 +1,21 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
-import { AIAssistant } from '../components/AIAssistant';
+import { AIAssistant, AIAssistantHandle } from '../components/AIAssistant';
+import { AIAssistantFAB } from '../components/AIAssistantFAB';
 import { AppHeader } from '../components/AppHeader';
 import { BottomNav } from '../components/BottomNav';
+import { LazyEnvironmentScanner } from '../components/LazyEnvironmentScanner';
 import { HackathonBackdrop } from '../components/HackathonBackdrop';
 import { NetStatusBanner } from '../components/NetStatusBanner';
+import { SecureWebBanner } from '../components/SecureWebBanner';
 import { ScreenTransition } from '../components/ScreenTransition';
+import { VoiceAssistantIndicator } from '../components/VoiceAssistantIndicator';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useMapLocation } from '../context/MapLocationContext';
 import { FeedItem } from '../data/community';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { useVoiceInput } from '../hooks/useVoiceInput';
 import { CommunityScreen } from '../screens/CommunityScreen';
 import { MapScreen } from '../screens/MapScreen';
 import { PlanearScreen } from '../screens/PlanearScreen';
@@ -19,16 +24,31 @@ import { OverlayId, TabId } from '../types/navigation';
 import { OverlayLayer } from './OverlayLayer';
 
 export function AppShell() {
-  const { talkBackEnabled } = useAccessibility();
+  const { talkBackEnabled, personType } = useAccessibility();
   const { colors, isHackathon } = useAppTheme();
   const { flyTo } = useMapLocation();
   const [activeTab, setActiveTab] = useState<TabId>('mapa');
   const [overlay, setOverlay] = useState<OverlayId | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannerMode, setScannerMode] = useState<'scan' | 'guided'>('scan');
+  const aiRef = useRef<AIAssistantHandle>(null);
+  const planearVoiceHandlerRef = useRef<((text: string) => void) | null>(null);
+
+  const voice = useVoiceInput({
+    onTranscription: async (text) => {
+      if (activeTab === 'planear' && personType === 'visual' && planearVoiceHandlerRef.current) {
+        planearVoiceHandlerRef.current(text);
+        return 'Destino actualizado con tu voz';
+      }
+      const reply = await aiRef.current?.submitVoiceText(text);
+      return reply ?? '';
+    },
+  });
 
   const shellStyle = [
     styles.root,
-    talkBackEnabled && styles.rootTalkBack,
-    !talkBackEnabled && { backgroundColor: colors.surface },
+    talkBackEnabled && !isHackathon && styles.rootTalkBack,
+    (!talkBackEnabled || isHackathon) && { backgroundColor: colors.surface },
   ];
   const statusStyle = talkBackEnabled || isHackathon ? 'light' : 'dark';
 
@@ -36,6 +56,11 @@ export function AppShell() {
 
   const handleReportSuccess = useCallback(() => {
     setActiveTab('mapa');
+  }, []);
+
+  const openScanner = useCallback((mode: 'scan' | 'guided') => {
+    setScannerMode(mode);
+    setShowScanner(true);
   }, []);
 
   const handleViewFeedOnMap = useCallback(
@@ -62,6 +87,9 @@ export function AppShell() {
           <PlanearScreen
             onOpenDetail={() => setOverlay('detalle')}
             onOpenExpert={() => setOverlay('expert')}
+            onRegisterVoiceDestination={(handler) => {
+              planearVoiceHandlerRef.current = handler;
+            }}
           />
         );
       case 'reportar':
@@ -99,13 +127,32 @@ export function AppShell() {
         onSettingsPress={() => setOverlay('settings')}
       />
       <NetStatusBanner />
+      <SecureWebBanner />
       <View style={styles.main}>
         <ScreenTransition screenKey={activeTab}>{renderTabContent()}</ScreenTransition>
       </View>
       <View pointerEvents="box-none" style={styles.navLayer}>
         <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
       </View>
-      <AIAssistant activeTab={activeTab} overlay={null} />
+      
+      {!showScanner && (
+        <AIAssistantFAB onPress={() => aiRef.current?.openSheet()} />
+      )}
+
+      {(!isHackathon || activeTab !== 'mapa' || voice.state !== 'idle') && (
+        <VoiceAssistantIndicator state={voice.state} onPress={voice.toggleListening} />
+      )}
+      
+      <AIAssistant 
+        ref={aiRef} 
+        activeTab={activeTab} 
+        overlay={null} 
+        onOpenScanner={openScanner}
+      />
+
+      {showScanner ? (
+        <LazyEnvironmentScanner mode={scannerMode} onClose={() => setShowScanner(false)} />
+      ) : null}
     </View>
   );
 }

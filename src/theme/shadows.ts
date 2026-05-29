@@ -3,39 +3,39 @@ import { Platform, ViewStyle } from 'react-native';
 export const shadows = {
   sm: Platform.select<ViewStyle>({
     ios: {
-      shadowColor: '#003f87',
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
+      shadowColor: '#0f172a',
+      shadowOpacity: 0.06,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
     },
     android: { elevation: 3 },
     default: {},
   }),
   md: Platform.select<ViewStyle>({
     ios: {
-      shadowColor: '#001a40',
-      shadowOpacity: 0.12,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 6 },
+      shadowColor: '#0f172a',
+      shadowOpacity: 0.08,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 8 },
     },
     android: { elevation: 6 },
     default: {},
   }),
   lg: Platform.select<ViewStyle>({
     ios: {
-      shadowColor: '#000000',
-      shadowOpacity: 0.16,
-      shadowRadius: 24,
-      shadowOffset: { width: 0, height: 10 },
+      shadowColor: '#0f172a',
+      shadowOpacity: 0.12,
+      shadowRadius: 30,
+      shadowOffset: { width: 0, height: 12 },
     },
     android: { elevation: 10 },
     default: {},
   }),
   nav: Platform.select<ViewStyle>({
     ios: {
-      shadowColor: '#003f87',
-      shadowOpacity: 0.1,
-      shadowRadius: 20,
+      shadowColor: '#0f172a',
+      shadowOpacity: 0.05,
+      shadowRadius: 24,
       shadowOffset: { width: 0, height: -4 },
     },
     android: { elevation: 12 },
@@ -44,9 +44,10 @@ export const shadows = {
 } as const;
 
 export const glass = {
-  light: 'rgba(255, 255, 255, 0.92)',
-  medium: 'rgba(255, 255, 255, 0.85)',
-  border: 'rgba(194, 198, 212, 0.55)',
+  light: 'rgba(255, 255, 255, 0.85)',
+  medium: 'rgba(255, 255, 255, 0.65)',
+  dark: 'rgba(241, 245, 249, 0.85)',
+  border: 'rgba(203, 213, 225, 0.45)',
 } as const;
 
 export const radii = {

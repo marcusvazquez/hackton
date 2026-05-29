@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useCallback, useEffect } from 'react';
+import * as Haptics from 'expo-haptics';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -8,9 +9,12 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { useAdaptiveUI } from '../hooks/useAdaptiveUI';
 import { useAnimations } from '../hooks/useAnimations';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { useTouchExploreTarget } from '../hooks/useTouchExploreTarget';
 import { spacing } from '../theme/colors';
+import { HACKATHON_TAB_LABELS, hackathonTypography } from '../theme/hackathonLayout';
 import { radii, shadows } from '../theme/shadows';
 import { TAB_LABELS, TAB_ORDER, TabId } from '../types/navigation';
 import { playNavigationSound } from '../utils/talkbackSounds';
@@ -21,6 +25,13 @@ type Props = {
 };
 
 const TAB_WIDTH = 72;
+
+const TAB_HINTS: Record<TabId, string> = {
+  mapa: 'Abre el mapa con rutas y barreras accesibles',
+  planear: 'Planifica una ruta accesible a tu destino',
+  reportar: 'Reporta una barrera u obstáculo en el camino',
+  comunidad: 'Consulta los reportes compartidos por la comunidad',
+};
 
 const icons: Record<TabId, keyof typeof MaterialIcons.glyphMap> = {
   mapa: 'map',
@@ -35,14 +46,26 @@ function TabButton({
   onPress,
   activeColor,
   inactiveColor,
-  fontBold,
+  labelFont,
+  minTouchTarget,
+  simplifiedUI,
+  fullA11y,
+  fontSize,
+  isHackathon,
+  tabLabel,
 }: {
   tab: TabId;
   isActive: boolean;
   onPress: () => void;
   activeColor: string;
   inactiveColor: string;
-  fontBold: string;
+  labelFont: string;
+  minTouchTarget: number;
+  simplifiedUI: boolean;
+  fullA11y: boolean;
+  fontSize: number;
+  isHackathon: boolean;
+  tabLabel: string;
 }) {
   const { reduceMotion } = useAccessibility();
   const { navEase } = useAnimations();
@@ -79,28 +102,56 @@ function TabButton({
     transform: [{ scale: labelScale.value }],
   }));
 
+  const hint = TAB_HINTS[tab];
+  const { ref: exploreRef, onLayout: onExploreLayout } = useTouchExploreTarget(
+    fullA11y ? `Pestaña ${tabLabel}` : tabLabel,
+    fullA11y ? hint : undefined,
+  );
+
   return (
     <Pressable
+      ref={exploreRef}
+      onLayout={onExploreLayout}
+      accessible
       accessibilityRole="tab"
       accessibilityState={{ selected: isActive }}
+      accessibilityLabel={fullA11y ? `Pestaña ${tabLabel}` : tabLabel}
+      accessibilityHint={fullA11y ? hint : undefined}
       onPress={onPress}
-      style={styles.tabButton}
+      style={[
+        styles.tabButton,
+        isHackathon && styles.tabButtonHackathon,
+        { minHeight: minTouchTarget },
+      ]}
     >
-      <Animated.View style={iconStyle}>
-        <MaterialIcons
-          name={icons[tab]}
-          size={24}
-          color={isActive ? activeColor : inactiveColor}
-        />
-      </Animated.View>
+      {!simplifiedUI ? (
+        <Animated.View style={iconStyle}>
+          <MaterialIcons
+            name={icons[tab]}
+            size={isHackathon ? 22 : 24}
+            color={isActive ? activeColor : inactiveColor}
+          />
+        </Animated.View>
+      ) : null}
       <Animated.Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
         style={[
           styles.tabLabel,
-          { fontFamily: fontBold, color: isActive ? activeColor : inactiveColor },
+          simplifiedUI && styles.tabLabelSimplified,
+          !isHackathon && styles.tabLabelUppercase,
+          isHackathon && styles.tabLabelHackathon,
+          {
+            fontFamily: labelFont,
+            fontSize,
+            lineHeight: isHackathon ? fontSize + 2 : undefined,
+            color: isActive ? activeColor : inactiveColor,
+          },
           labelStyle,
         ]}
       >
-        {TAB_LABELS[tab]}
+        {tabLabel}
       </Animated.Text>
     </Pressable>
   );
@@ -108,38 +159,54 @@ function TabButton({
 
 export function BottomNav({ activeTab, onTabChange }: Props) {
   const insets = useSafeAreaInsets();
-  const { reduceMotion, talkBackEnabled, speak } = useAccessibility();
-  const { colors, glass, isHackathon, fontBold } = useAppTheme();
+  const { reduceMotion, talkBackEnabled, speak, personType } = useAccessibility();
+  const adaptive = useAdaptiveUI();
+  const { colors, glass, isHackathon, fontBold, fontNav } = useAppTheme();
   const { navEase } = useAnimations();
   const activeIndex = TAB_ORDER.indexOf(activeTab);
-  const indicatorX = useSharedValue(activeIndex * TAB_WIDTH);
+  const [trackWidth, setTrackWidth] = useState(0);
+  const tabWidth = trackWidth > 0 ? trackWidth / TAB_ORDER.length : TAB_WIDTH;
+  const indicatorX = useSharedValue(activeIndex * tabWidth);
+  const fullA11y = personType === 'visual';
+  const tabLabels = isHackathon ? HACKATHON_TAB_LABELS : TAB_LABELS;
+  const navFontSize = isHackathon
+    ? hackathonTypography.bodySm
+    : adaptive.simplifiedUI
+      ? adaptive.fontSize
+      : 12;
 
   useEffect(() => {
+    const x = activeIndex * tabWidth;
     indicatorX.value = reduceMotion
-      ? activeIndex * TAB_WIDTH
-      : withTiming(activeIndex * TAB_WIDTH, { duration: 300, easing: navEase });
-  }, [activeIndex, indicatorX, navEase, reduceMotion]);
+      ? x
+      : withTiming(x, { duration: 300, easing: navEase });
+  }, [activeIndex, indicatorX, navEase, reduceMotion, tabWidth]);
 
   const handleTabChange = useCallback(
     (tab: TabId) => {
       onTabChange(tab);
       if (talkBackEnabled) {
         playNavigationSound();
-        void speak(`Pestaña ${TAB_LABELS[tab]} seleccionada`);
+        void speak(`Pestaña ${tabLabels[tab]} seleccionada`);
+      } else if (adaptive.useHaptics) {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
-    [onTabChange, talkBackEnabled, speak],
+    [adaptive.useHaptics, onTabChange, tabLabels, talkBackEnabled, speak],
   );
 
   const indicatorStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: indicatorX.value }],
   }));
 
+  const navMinHeight = personType === 'motriz' ? 72 : undefined;
+
   return (
     <View style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       <View
         style={[
           styles.container,
+          navMinHeight != null && { minHeight: navMinHeight },
           shadows.nav,
           isHackathon && styles.containerHackathon,
           { backgroundColor: glass.light, borderColor: glass.border },
@@ -147,10 +214,23 @@ export function BottomNav({ activeTab, onTabChange }: Props) {
       >
         <View style={styles.indicatorTrack}>
           <Animated.View
-            style={[styles.indicator, { backgroundColor: colors.primary }, indicatorStyle]}
+            style={[
+              styles.indicator,
+              { width: tabWidth, backgroundColor: colors.primary },
+              indicatorStyle,
+              isHackathon && {
+                shadowColor: colors.primary,
+                shadowOpacity: 0.8,
+                shadowRadius: 6,
+                shadowOffset: { width: 0, height: 0 },
+              },
+            ]}
           />
         </View>
-        <View style={styles.tabsRow}>
+        <View
+          style={styles.tabsRow}
+          onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+        >
           {TAB_ORDER.map((tab) => (
             <TabButton
               key={tab}
@@ -159,7 +239,13 @@ export function BottomNav({ activeTab, onTabChange }: Props) {
               onPress={() => handleTabChange(tab)}
               activeColor={colors.primary}
               inactiveColor={colors.onSurfaceVariant}
-              fontBold={fontBold}
+              labelFont={isHackathon ? fontNav : fontBold}
+              minTouchTarget={adaptive.minTouchTarget}
+              simplifiedUI={adaptive.simplifiedUI}
+              fullA11y={fullA11y}
+              fontSize={navFontSize}
+              isHackathon={isHackathon}
+              tabLabel={tabLabels[tab]}
             />
           ))}
         </View>
@@ -170,14 +256,16 @@ export function BottomNav({ activeTab, onTabChange }: Props) {
 
 const styles = StyleSheet.create({
   outer: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingTop: 8,
     backgroundColor: 'transparent',
+    marginBottom: 8,
   },
   container: {
     borderWidth: 1,
-    borderRadius: radii.xl,
-    paddingTop: 10,
+    borderRadius: radii.pill,
+    paddingTop: 8,
+    paddingBottom: 4,
     overflow: 'hidden',
   },
   containerHackathon: {
@@ -194,26 +282,41 @@ const styles = StyleSheet.create({
     height: 3,
   },
   indicator: {
-    width: TAB_WIDTH,
     height: 3,
     borderRadius: 2,
   },
   tabsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
   },
   tabButton: {
     width: TAB_WIDTH,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 4,
-    minHeight: spacing.touchMin,
+  },
+  tabButtonHackathon: {
+    flex: 1,
+    width: undefined,
+    minWidth: 0,
+    paddingHorizontal: 2,
   },
   tabLabel: {
-    fontSize: 12,
     letterSpacing: 0.5,
     marginTop: 2,
+    textAlign: 'center',
+    maxWidth: '100%',
+  },
+  tabLabelUppercase: {
     textTransform: 'uppercase',
+  },
+  tabLabelHackathon: {
+    textTransform: 'none',
+    letterSpacing: 0,
+    marginTop: 2,
+  },
+  tabLabelSimplified: {
+    textTransform: 'none',
+    marginTop: 0,
   },
 });

@@ -44,6 +44,10 @@ export function VoiceAssistantCard() {
     ? undefined
     : FadeInUp.duration(400).delay(450).easing(Easing.bezier(0.16, 1, 0.3, 1));
 
+  if (isHackathon) {
+    return null;
+  }
+
   return (
     <Animated.View entering={entering} style={styles.wrapper}>
       <View

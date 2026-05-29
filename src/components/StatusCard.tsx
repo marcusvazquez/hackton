@@ -12,22 +12,37 @@ import { useMapLocation } from '../context/MapLocationContext';
 import { useAnimations } from '../hooks/useAnimations';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { spacing } from '../theme/colors';
-import { mapOverlay } from '../theme/layout';
+import { useMapOverlayInsets } from '../hooks/useMapOverlayInsets';
+import { hackathonTypography } from '../theme/hackathonLayout';
 import { radii, shadows } from '../theme/shadows';
 
 type Props = {
   onPressVer: () => void;
+  highContrast?: boolean;
+  fontSize?: number;
+  minTouchTarget?: number;
 };
 
-export function StatusCard({ onPressVer }: Props) {
-  const { reduceMotion } = useAccessibility();
+export function StatusCard({
+  onPressVer,
+  highContrast = false,
+  fontSize = 16,
+  minTouchTarget = 44,
+}: Props) {
+  const { reduceMotion, speak, personType } = useAccessibility();
   const { flyToZonaCentroBarrera } = useMapLocation();
-  const { colors, fontBold, fontRegular } = useAppTheme();
+  const { colors, fontBold, fontRegular, isHackathon, fontNav } = useAppTheme();
+  const overlay = useMapOverlayInsets();
+  const titleSize = isHackathon ? hackathonTypography.bodySm : fontSize;
+  const subtitleSize = isHackathon ? hackathonTypography.bodyXs : fontSize - 3;
   const { statusCardEnter } = useAnimations();
   const scale = useSharedValue(1);
 
   const handlePress = () => {
     flyToZonaCentroBarrera();
+    if (personType === 'visual') {
+      void speak('Zona Centro. Dos barreras reportadas cerca de ti.');
+    }
     if (!reduceMotion) {
       scale.value = withSequence(
         withTiming(0.97, { duration: 75 }),
@@ -42,14 +57,25 @@ export function StatusCard({ onPressVer }: Props) {
   }));
 
   return (
-    <Animated.View entering={statusCardEnter} style={[styles.wrapper, cardStyle]}>
+    <Animated.View
+      entering={statusCardEnter}
+      style={[
+        styles.wrapper,
+        {
+          bottom: overlay.statusCardBottom,
+          right: overlay.statusCardRight ?? 90,
+        },
+        cardStyle,
+      ]}
+    >
       <View
         style={[
           styles.card,
           shadows.md,
           {
-            backgroundColor: colors.surfaceContainerLowest,
-            borderColor: colors.outlineVariant,
+            backgroundColor: highContrast ? '#111111' : colors.surfaceContainerLowest,
+            borderColor: highContrast ? '#ffffff' : colors.outlineVariant,
+            borderWidth: highContrast ? 2 : 1,
           },
         ]}
       >
@@ -57,10 +83,32 @@ export function StatusCard({ onPressVer }: Props) {
           <MaterialIcons name="report" size={24} color={colors.onSecondaryFixed} />
         </View>
         <View style={styles.content}>
-          <Text style={[styles.title, { fontFamily: fontBold, color: colors.onSurface }]}>
+          <Text
+            numberOfLines={2}
+            style={[
+              styles.title,
+              {
+                fontFamily: isHackathon ? fontNav : fontBold,
+                fontSize: titleSize,
+                lineHeight: isHackathon ? hackathonTypography.lineBodySm : undefined,
+                color: highContrast ? '#ffffff' : colors.onSurface,
+              },
+            ]}
+          >
             Cerca: Zona Centro
           </Text>
-          <Text style={[styles.subtitle, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
+          <Text
+            numberOfLines={2}
+            style={[
+              styles.subtitle,
+              {
+                fontFamily: fontRegular,
+                fontSize: subtitleSize,
+                lineHeight: isHackathon ? hackathonTypography.lineBodySm : undefined,
+                color: highContrast ? '#e5e5e5' : colors.onSurfaceVariant,
+              },
+            ]}
+          >
             2 barreras reportadas cerca de ti.
           </Text>
         </View>
@@ -69,10 +117,22 @@ export function StatusCard({ onPressVer }: Props) {
           importantForAccessibility="yes"
           accessibilityRole="button"
           accessibilityLabel="Ver 2 barreras reportadas cerca de ti en Zona Centro"
+          accessibilityHint="Muestra el detalle de las barreras en Zona Centro"
           onPress={handlePress} 
-          style={[styles.verButton, { backgroundColor: colors.secondary }]}
+          style={[styles.verButton, { backgroundColor: colors.secondary, minHeight: minTouchTarget }]}
         >
-          <Text style={[styles.verText, { fontFamily: fontBold, color: colors.onSecondary }]}>Ver</Text>
+          <Text
+            style={[
+              styles.verText,
+              {
+                fontFamily: isHackathon ? fontNav : fontBold,
+                fontSize: isHackathon ? hackathonTypography.pixelMd : 16,
+                color: colors.onSecondary,
+              },
+            ]}
+          >
+            Ver
+          </Text>
           <MaterialIcons name="chevron-right" size={20} color={colors.onSecondary} />
         </Pressable>
       </View>
@@ -83,9 +143,7 @@ export function StatusCard({ onPressVer }: Props) {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    bottom: mapOverlay.statusCardBottom,
     left: spacing.edge,
-    right: 90,
     zIndex: 20,
   },
   card: {
@@ -102,6 +160,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    minWidth: 0,
   },
   title: {
     fontSize: 16,

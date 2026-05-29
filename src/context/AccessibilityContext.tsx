@@ -9,15 +9,33 @@ import React, {
   useState,
 } from 'react';
 import { AccessibilityInfo, Platform } from 'react-native';
-import { PersonTypeId } from '../data/personTypes';
 import { speakTalkBack, stopTalkBackSpeech } from '../utils/talkBackTts';
+
+export type PersonType = 'visual' | 'motriz' | 'auditiva' | 'cognitiva' | null;
 
 const STORAGE_KEYS = {
   personType: '@ruta_libre/person_type',
   onboardingDone: '@ruta_libre/onboarding_done',
+  welcomeDone: '@ruta_libre/welcome_done',
   hackathonMode: '@ruta_libre/hackathon_mode',
   talkBack: '@ruta_libre/talkback_enabled',
 } as const;
+
+function normalizeStoredPersonType(raw: string | null): PersonType | null {
+  if (!raw) return null;
+  const map: Record<string, PersonType> = {
+    visual: 'visual',
+    motriz: 'motriz',
+    auditiva: 'auditiva',
+    cognitiva: 'cognitiva',
+    wheelchair: 'motriz',
+    'reduced-mobility': 'motriz',
+    hearing: 'auditiva',
+    cognitive: 'cognitiva',
+    unspecified: null,
+  };
+  return map[raw] ?? null;
+}
 
 type AccessibilityContextValue = {
   talkBackEnabled: boolean;
@@ -28,8 +46,10 @@ type AccessibilityContextValue = {
   systemReduceMotion: boolean;
   systemScreenReader: boolean;
   toggleTalkBack: () => void;
-  personType: PersonTypeId | null;
-  setPersonType: (value: PersonTypeId) => void;
+  personType: PersonType;
+  setPersonType: (value: Exclude<PersonType, null>) => void;
+  hasSeenWelcome: boolean;
+  completeWelcome: () => void;
   hasCompletedOnboarding: boolean;
   completeOnboarding: () => void;
   resetOnboarding: () => void;
@@ -48,13 +68,16 @@ function getWebPrefersReducedMotion(): boolean {
 }
 
 export function AccessibilityProvider({ children }: { children: React.ReactNode }) {
-  const [talkBackEnabled, setTalkBackEnabled] = useState(false);
+  const [talkBackPreference, setTalkBackPreference] = useState(false);
+  const [personType, setPersonTypeState] = useState<PersonType>(null);
   const [systemScreenReader, setSystemScreenReader] = useState(false);
   const [systemReduceMotion, setSystemReduceMotion] = useState(false);
-  const [personType, setPersonTypeState] = useState<PersonTypeId | null>(null);
+  const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [hackathonMode, setHackathonModeState] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+
+  const talkBackEnabled = personType === 'visual' && talkBackPreference;
   const talkBackRef = useRef(talkBackEnabled);
   talkBackRef.current = talkBackEnabled;
 
@@ -81,23 +104,35 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
 
     const hydrate = async () => {
       try {
-        const [storedType, storedDone, storedHackathon, storedTalkBack] = await Promise.all([
+        const [storedType, storedDone, storedWelcome, storedHackathon, storedTalkBack] =
+          await Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.personType),
           AsyncStorage.getItem(STORAGE_KEYS.onboardingDone),
+          AsyncStorage.getItem(STORAGE_KEYS.welcomeDone),
           AsyncStorage.getItem(STORAGE_KEYS.hackathonMode),
           AsyncStorage.getItem(STORAGE_KEYS.talkBack),
         ]);
         if (!mounted) return;
-        if (storedType) {
-          setPersonTypeState(storedType as PersonTypeId);
+
+        const normalizedType = normalizeStoredPersonType(storedType);
+        if (normalizedType) {
+          setPersonTypeState(normalizedType);
         }
-        // Force onboarding to false so the user can see the disability selection screen every time
-        setHasCompletedOnboarding(false);
+
+        setHasSeenWelcome(storedWelcome === 'true');
+        setHasCompletedOnboarding(storedDone === 'true');
         setHackathonModeState(storedHackathon === 'true');
-        if (storedTalkBack === 'true') {
-          setTalkBackEnabled(true);
-        } else if (storedTalkBack !== 'false' && storedType === 'visual') {
-          setTalkBackEnabled(true);
+
+        if (normalizedType === 'visual') {
+          if (storedTalkBack === 'true') {
+            setTalkBackPreference(true);
+          } else if (storedTalkBack !== 'false') {
+            setTalkBackPreference(true);
+          } else {
+            setTalkBackPreference(false);
+          }
+        } else {
+          setTalkBackPreference(false);
         }
       } finally {
         if (mounted) {
@@ -120,10 +155,6 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       const enabled = await AccessibilityInfo.isScreenReaderEnabled();
       if (mounted) {
         setSystemScreenReader(enabled);
-        if (enabled) {
-          setTalkBackEnabled(true);
-          void AsyncStorage.setItem(STORAGE_KEYS.talkBack, 'true');
-        }
       }
     };
 
@@ -134,10 +165,6 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       (enabled) => {
         if (!mounted) return;
         setSystemScreenReader(enabled);
-        if (enabled) {
-          setTalkBackEnabled(true);
-          void AsyncStorage.setItem(STORAGE_KEYS.talkBack, 'true');
-        }
       },
     );
 
@@ -192,17 +219,18 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       document.body.classList.toggle('reduce-motion', reduceMotion);
       document.body.classList.toggle('talkback-mode', talkBackEnabled);
-      document.body.classList.toggle('hackathon-mode', hackathonMode && !talkBackEnabled);
+      document.body.classList.toggle('hackathon-mode', hackathonMode);
     }
   }, [talkBackEnabled, hackathonMode, reduceMotion]);
 
   const applyTalkBack = useCallback(
     (value: boolean) => {
-      setTalkBackEnabled(value);
+      if (personType !== 'visual') return;
+      setTalkBackPreference(value);
       void AsyncStorage.setItem(STORAGE_KEYS.talkBack, value ? 'true' : 'false');
       announceTalkBackMode(value);
     },
-    [announceTalkBackMode],
+    [announceTalkBackMode, personType],
   );
 
   const setHackathonMode = useCallback((value: boolean) => {
@@ -211,28 +239,36 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   }, []);
 
   const toggleTalkBack = useCallback(() => {
-    setTalkBackEnabled((prev) => {
+    if (personType !== 'visual') return;
+    setTalkBackPreference((prev) => {
       const next = !prev;
       void AsyncStorage.setItem(STORAGE_KEYS.talkBack, next ? 'true' : 'false');
       announceTalkBackMode(next);
       return next;
     });
-  }, [announceTalkBackMode]);
+  }, [announceTalkBackMode, personType]);
 
-  const setPersonType = useCallback(
-    (value: PersonTypeId) => {
-      setPersonTypeState(value);
-      void AsyncStorage.setItem(STORAGE_KEYS.personType, value);
-      if (value === 'visual') {
-        void AsyncStorage.getItem(STORAGE_KEYS.talkBack).then((stored) => {
-          if (stored !== 'false') {
-            applyTalkBack(true);
-          }
-        });
-      }
-    },
-    [applyTalkBack],
-  );
+  const setPersonType = useCallback((value: Exclude<PersonType, null>) => {
+    setPersonTypeState(value);
+    void AsyncStorage.setItem(STORAGE_KEYS.personType, value);
+
+    if (value === 'visual') {
+      void AsyncStorage.getItem(STORAGE_KEYS.talkBack).then((stored) => {
+        if (stored !== 'false') {
+          setTalkBackPreference(true);
+          void AsyncStorage.setItem(STORAGE_KEYS.talkBack, 'true');
+        }
+      });
+    } else {
+      setTalkBackPreference(false);
+      void AsyncStorage.setItem(STORAGE_KEYS.talkBack, 'false');
+    }
+  }, []);
+
+  const completeWelcome = useCallback(() => {
+    setHasSeenWelcome(true);
+    void AsyncStorage.setItem(STORAGE_KEYS.welcomeDone, 'true');
+  }, []);
 
   const completeOnboarding = useCallback(() => {
     setHasCompletedOnboarding(true);
@@ -240,9 +276,11 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   }, []);
 
   const resetOnboarding = useCallback(() => {
+    setHasSeenWelcome(false);
     setHasCompletedOnboarding(false);
     setPersonTypeState(null);
     void AsyncStorage.multiRemove([
+      STORAGE_KEYS.welcomeDone,
       STORAGE_KEYS.onboardingDone,
       STORAGE_KEYS.personType,
     ]);
@@ -259,6 +297,8 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       toggleTalkBack,
       personType,
       setPersonType,
+      hasSeenWelcome,
+      completeWelcome,
       hasCompletedOnboarding,
       completeOnboarding,
       resetOnboarding,
@@ -276,6 +316,8 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       toggleTalkBack,
       personType,
       setPersonType,
+      hasSeenWelcome,
+      completeWelcome,
       hasCompletedOnboarding,
       completeOnboarding,
       resetOnboarding,

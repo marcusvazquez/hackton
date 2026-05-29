@@ -3,11 +3,12 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { TalkBackOverlay } from '../components/TalkBackOverlay';
 import { SectionHeader } from '../components/SectionHeader';
+import { ParaTodosBrand } from '../components/ParaTodosBrand';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useExpertPrefs } from '../hooks/useExpertPrefs';
 import { EXPERT_PREFS } from '../data/expertPrefs';
-import { getPersonTypeLabel, PERSON_TYPES } from '../data/personTypes';
+import { getPersonTypeDescription, getPersonTypeLabel, PERSON_TYPES } from '../data/personTypes';
 import {
   OFFLINE_MAPS,
   STORAGE_TOTAL_MB,
@@ -89,6 +90,8 @@ export function ProfileScreen({ onBack }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        <ParaTodosBrand style={styles.brandBlock} />
+
         <Text
           style={[
             styles.sectionTitle,
@@ -183,6 +186,17 @@ export function ProfileScreen({ onBack }: Props) {
                 ]}
               >
                 {getPersonTypeLabel(personType)}
+              </Text>
+              <Text
+                style={[
+                  styles.profileHint,
+                  {
+                    fontFamily: fontRegular,
+                    color: talkBackEnabled ? '#aaaaaa' : colors.outline,
+                  },
+                ]}
+              >
+                {getPersonTypeDescription(personType)}
               </Text>
             </View>
           </View>
@@ -380,7 +394,7 @@ export function ProfileScreen({ onBack }: Props) {
               backgroundColor: colors.surfaceContainerLowest,
               borderColor: isHackathon ? colors.primary : colors.outlineVariant,
             },
-            isHackathon && !talkBackEnabled && styles.rowHackathon,
+            isHackathon && styles.rowHackathon,
           ]}
         >
           <View style={styles.rowText}>
@@ -407,7 +421,9 @@ export function ProfileScreen({ onBack }: Props) {
                   },
                 ]}
               >
-                Estilo retro cyber/neon para demos y eventos
+                {isHackathon
+                  ? '▶ HACKFOX · PIXEL · NEON · INSERT COIN TO INNOVATE'
+                  : 'Estilo arcade HackFox (pixel + cyber/neon) para demos'}
               </Text>
             </View>
           </View>
@@ -424,7 +440,7 @@ export function ProfileScreen({ onBack }: Props) {
         </View>
 
         <View style={styles.chipRow}>
-          {PERSON_TYPES.slice(0, 3).map((type) => (
+          {PERSON_TYPES.map((type) => (
             <Pressable
               key={type.id}
               accessibilityRole="button"
@@ -476,7 +492,7 @@ export function ProfileScreen({ onBack }: Props) {
               },
             ]}
           >
-            Sobre Ruta Libre
+            Sobre ParaTodos
           </Text>
           <Text
             style={[
@@ -535,6 +551,14 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     gap: 16,
+  },
+  brandBlock: {
+    marginBottom: 4,
+  },
+  profileHint: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
   },
   row: {
     flexDirection: 'row',

@@ -1,6 +1,19 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -14,8 +27,10 @@ import { SubmitButton } from '../components/SubmitButton';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useOfflineContext } from '../context/OfflineContext';
 import { BARRIER_TYPES } from '../data/barriers';
+import { useAdaptiveUI } from '../hooks/useAdaptiveUI';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { voiceAIService } from '../services/voiceAI';
 import { spacing } from '../theme/colors';
 import { SCROLL_BOTTOM_INSET } from '../theme/layout';
 import { radii } from '../theme/shadows';
@@ -28,12 +43,18 @@ type Props = {
 };
 
 export function ReportScreen({ onReportSuccess }: Props) {
-  const { talkBackEnabled, reduceMotion, speak } = useAccessibility();
-  const { colors, fontBold, fontRegular, isHackathon, spacing: themeSpacing } = useAppTheme();
+  const { talkBackEnabled, reduceMotion, speak, personType } = useAccessibility();
+  const adaptive = useAdaptiveUI();
+  const { colors, fontBold, fontRegular, isHackathon, fontNav, spacing: themeSpacing } =
+    useAppTheme();
   const { isOnline } = useNetworkStatus();
   const { addToQueue, syncQueue } = useOfflineContext();
   const [selected, setSelected] = useState<string | null>(null);
   const [savedOffline, setSavedOffline] = useState(false);
+  const [description, setDescription] = useState('');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [voiceRecording, setVoiceRecording] = useState(false);
+  const [voiceProcessing, setVoiceProcessing] = useState(false);
   const rotation = useSharedValue(0);
   const barProgress = useSharedValue(0.1);
 
@@ -89,24 +110,145 @@ export function ReportScreen({ onReportSuccess }: Props) {
   const handleSelectBarrier = useCallback(
     (id: string) => {
       setSelected(id);
+      const barrier = BARRIER_TYPES.find((b) => b.id === id);
+      if (!barrier) return;
+
       if (talkBackEnabled) {
+        void speak(`${barrier.label} seleccionado`);
+      } else if (!adaptive.showCaptions) {
         playSelectSound();
-        const barrier = BARRIER_TYPES.find((b) => b.id === id);
-        if (barrier) void speak(`${barrier.label} seleccionado`);
       }
     },
-    [speak, talkBackEnabled],
+    [adaptive.showCaptions, speak, talkBackEnabled],
   );
 
+  const handleVoiceDescribe = useCallback(async () => {
+    if (voiceRecording) {
+      setVoiceProcessing(true);
+      try {
+        const uri = await voiceAIService.stopRecording();
+        setVoiceRecording(false);
+        if (uri) {
+          let text = await voiceAIService.transcribeAudio(uri);
+          if (!text.trim()) {
+            text = 'Barrera reportada en la vía pública';
+          }
+          setDescription(text);
+          if (talkBackEnabled) {
+            await speak(`Descripción: ${text}`);
+          }
+        }
+      } finally {
+        setVoiceProcessing(false);
+      }
+      return;
+    }
+
+    try {
+      await voiceAIService.startRecording();
+      setVoiceRecording(true);
+      if (talkBackEnabled) {
+        await speak('Describe el problema. Toca de nuevo para terminar.');
+      }
+    } catch {
+      setVoiceRecording(false);
+    }
+  }, [speak, talkBackEnabled, voiceRecording]);
+
+  const applyPickedPhoto = useCallback(
+    (uri: string) => {
+      setPhotoUri(uri);
+      if (adaptive.useHaptics) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      if (talkBackEnabled) {
+        void speak('Foto adjuntada al reporte');
+      }
+    },
+    [adaptive.useHaptics, speak, talkBackEnabled],
+  );
+
+  const launchCamera = useCallback(async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      if (talkBackEnabled) void speak('Permiso de cámara denegado');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.72,
+      allowsEditing: true,
+    });
+    if (!result.canceled && result.assets[0]?.uri) {
+      applyPickedPhoto(result.assets[0].uri);
+    }
+  }, [applyPickedPhoto, talkBackEnabled, speak]);
+
+  const launchGallery = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      if (talkBackEnabled) void speak('Permiso de galería denegado');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.72,
+      allowsEditing: true,
+    });
+    if (!result.canceled && result.assets[0]?.uri) {
+      applyPickedPhoto(result.assets[0].uri);
+    }
+  }, [applyPickedPhoto, talkBackEnabled, speak]);
+
+  const handlePickPhoto = useCallback(() => {
+    if (Platform.OS === 'web') {
+      void launchCamera();
+      return;
+    }
+    const buttons: {
+      text: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }[] = [
+      { text: 'Tomar foto', onPress: () => void launchCamera() },
+      { text: 'Elegir de galería', onPress: () => void launchGallery() },
+    ];
+    if (photoUri) {
+      buttons.push({
+        text: 'Quitar foto',
+        style: 'destructive',
+        onPress: () => {
+          setPhotoUri(null);
+          if (talkBackEnabled) void speak('Foto eliminada');
+        },
+      });
+    }
+    buttons.push({ text: 'Cancelar', style: 'cancel' });
+    Alert.alert('Adjuntar foto', 'Documenta el obstáculo con una imagen', buttons);
+  }, [launchCamera, launchGallery, photoUri, talkBackEnabled, speak]);
+
+  const isMotriz = personType === 'motriz';
+  const isAuditiva = personType === 'auditiva';
+  const isVisual = personType === 'visual';
+
   const barrierGrid = (
-    <View style={styles.grid}>
+    <View style={[styles.grid, { gap: adaptive.itemSpacing }]}>
       {BARRIER_TYPES.map((barrier, index) => (
         <BarrierChip
           key={barrier.id}
           barrier={barrier}
           index={index}
           onSelect={handleSelectBarrier}
+          onAttachPhoto={handlePickPhoto}
           selected={selected === barrier.id}
+          iconOnly={isMotriz}
+          minTouchTarget={adaptive.minTouchTarget + (isMotriz ? 24 : 0)}
+          largeIcons={adaptive.largeIcons}
+          fontSize={
+            isHackathon
+              ? Math.min(adaptive.fontSize, 14)
+              : adaptive.fontSize
+          }
         />
       ))}
     </View>
@@ -127,7 +269,7 @@ export function ReportScreen({ onReportSuccess }: Props) {
             subtitle="Selecciona el tipo de obstáculo que encontraste"
           />
 
-          {isHackathon && !talkBackEnabled ? (
+          {isHackathon ? (
             <View
               style={[
                 styles.hintBox,
@@ -157,6 +299,104 @@ export function ReportScreen({ onReportSuccess }: Props) {
           )}
 
           {barrierGrid}
+
+          {isVisual ? (
+            <View style={styles.voiceDescribeSection}>
+              <TextInput
+                accessible
+                accessibilityLabel="Descripción del problema"
+                accessibilityHint="Opcional. También puedes dictar con el botón de voz"
+                multiline
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Describe el obstáculo (opcional)"
+                placeholderTextColor={colors.onSurfaceVariant}
+                style={[
+                  styles.descriptionInput,
+                  {
+                    fontFamily: fontRegular,
+                    fontSize: adaptive.fontSize,
+                    color: colors.onSurface,
+                    borderColor: colors.outlineVariant,
+                    backgroundColor: colors.surfaceContainerLow,
+                  },
+                ]}
+              />
+              <Pressable
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={voiceRecording ? 'Detener dictado' : 'Describir con voz'}
+                accessibilityHint="Graba una descripción hablada del obstáculo"
+                onPress={handleVoiceDescribe}
+                style={[
+                  styles.voiceDescribeBtn,
+                  {
+                    backgroundColor: voiceRecording ? colors.error : colors.primary,
+                    minHeight: adaptive.minTouchTarget,
+                  },
+                ]}
+              >
+                {voiceProcessing ? (
+                  <ActivityIndicator color={colors.onPrimary} />
+                ) : (
+                  <MaterialIcons
+                    name={voiceRecording ? 'stop' : 'mic'}
+                    size={adaptive.largeIcons ? 28 : 22}
+                    color={colors.onPrimary}
+                  />
+                )}
+                <Text style={[styles.voiceDescribeText, { fontFamily: fontBold, fontSize: adaptive.fontSize, color: colors.onPrimary }]}>
+                  {voiceRecording ? 'Detener' : 'Describir con voz'}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {selected ? (
+            <View style={styles.photoSection}>
+              {photoUri ? (
+                <Image
+                  source={{ uri: photoUri }}
+                  style={[
+                    styles.photoPreview,
+                    isHackathon && { borderColor: colors.primary, borderWidth: 3 },
+                  ]}
+                  accessibilityLabel="Foto del reporte"
+                />
+              ) : null}
+              <Pressable
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={photoUri ? 'Cambiar foto del obstáculo' : 'Adjuntar foto del obstáculo'}
+                accessibilityHint="Abre cámara o galería para documentar la barrera"
+                onPress={handlePickPhoto}
+                style={[
+                  styles.photoBtn,
+                  {
+                    borderColor: colors.primary,
+                    minHeight: adaptive.minTouchTarget,
+                    backgroundColor: isHackathon ? colors.surfaceContainerLow : 'transparent',
+                  },
+                  isHackathon && styles.photoBtnHackathon,
+                ]}
+              >
+                <MaterialIcons name="photo-camera" size={adaptive.largeIcons ? 32 : 24} color={colors.primary} />
+                <Text
+                  style={[
+                    styles.photoBtnText,
+                    {
+                      fontFamily: isHackathon ? fontNav : fontBold,
+                      fontSize: isHackathon ? 14 : adaptive.fontSize,
+                      color: colors.primary,
+                    },
+                  ]}
+                >
+                  {photoUri ? 'Cambiar foto' : 'Adjuntar foto (opcional)'}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           <SubmitButton disabled={!selected} onSuccess={onReportSuccess} />
         </>
       ) : (
@@ -405,6 +645,46 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 16, marginBottom: 24 },
   subtitleTalkBack: { color: '#cccccc' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  voiceDescribeSection: { marginTop: 16, gap: 12 },
+  descriptionInput: {
+    minHeight: 80,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: 12,
+    textAlignVertical: 'top',
+  },
+  voiceDescribeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: radii.md,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  voiceDescribeText: { fontSize: 16 },
+  photoSection: { marginTop: 16, gap: 12, alignItems: 'center' },
+  photoPreview: { width: '100%', height: 160, borderRadius: radii.md },
+  photoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 2,
+    borderRadius: radii.md,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    width: '100%',
+  },
+  photoBtnText: { fontSize: 16 },
+  photoBtnHackathon: {
+    borderWidth: 3,
+    shadowColor: '#00f5ff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    elevation: 6,
+  },
   offlineStatusBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -416,7 +696,7 @@ const styles = StyleSheet.create({
   offlineStatusText: { fontSize: 12, color: '#ffffff', letterSpacing: 0.5 },
   heroCard: {
     borderWidth: 1,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     padding: spacing.edge,
     marginBottom: spacing.gutter,
     gap: 8,
@@ -426,7 +706,7 @@ const styles = StyleSheet.create({
   syncIconWrap: {
     width: 80,
     height: 80,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -435,7 +715,7 @@ const styles = StyleSheet.create({
   },
   guaranteedCard: {
     borderWidth: 1,
-    borderRadius: radii.md,
+    borderRadius: radii.xl,
     padding: spacing.gutter,
     marginBottom: spacing.gutter,
     gap: 8,

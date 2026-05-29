@@ -10,7 +10,7 @@ const OFFLINE_AMBER = '#f97316';
 
 export function NetStatusBanner() {
   const { isOnline } = useNetworkStatus();
-  const { colors, fontBold } = useAppTheme();
+  const { colors, fontBold, isHackathon, fontNav } = useAppTheme();
   const { reduceMotion } = useAccessibility();
 
   const backgroundColor = isOnline ? colors.safeGreen : OFFLINE_AMBER;
@@ -19,11 +19,20 @@ export function NetStatusBanner() {
   const exitAnim = reduceMotion ? undefined : FadeOut.duration(200);
 
   return (
-    <View style={[styles.banner, { backgroundColor }]}>
+    <View style={[styles.banner, { backgroundColor, height: isHackathon ? 36 : 44 }]}>
       <Animated.View key={statusKey} entering={enterAnim} exiting={exitAnim} style={styles.row}>
-        <MaterialIcons name={isOnline ? 'wifi' : 'wifi-off'} size={18} color="#ffffff" />
-        <Text style={[styles.label, { fontFamily: fontBold }]}>
-          {isOnline ? 'Modo: Online' : 'Modo: Sin Conexión'}
+        <MaterialIcons name={isOnline ? 'wifi' : 'wifi-off'} size={isHackathon ? 16 : 18} color="#ffffff" />
+        <Text
+          style={[
+            styles.label,
+            {
+              fontFamily: isHackathon ? fontNav : fontBold,
+              fontSize: isHackathon ? 16 : 14,
+            },
+          ]}
+          numberOfLines={1}
+        >
+          {isOnline ? (isHackathon ? 'Online' : 'Modo: Online') : isHackathon ? 'Sin red' : 'Modo: Sin Conexión'}
         </Text>
         <MaterialIcons
           name={isOnline ? 'cloud-done' : 'cloud-off'}

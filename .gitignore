@@ -20,6 +20,9 @@ expo-env.d.ts
 
 # Metro
 .metro-health-check*
+.expo-tmp-export*/
+debug-*.log
+expo-qr.png
 
 # debug
 npm-debug.*

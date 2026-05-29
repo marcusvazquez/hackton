@@ -1,9 +1,11 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { ParaTodosBrand } from './ParaTodosBrand';
 import { spacing } from '../theme/colors';
 import { radii, shadows } from '../theme/shadows';
 
@@ -15,19 +17,22 @@ type Props = {
 
 export function AppHeader({ onMenuPress, onSearchPress, onSettingsPress }: Props) {
   const insets = useSafeAreaInsets();
-  const { talkBackEnabled } = useAccessibility();
+  const { talkBackEnabled, reduceMotion } = useAccessibility();
   const { colors, glass, fontBold, isHackathon } = useAppTheme();
 
   return (
-    <View style={[styles.headerWrap, { paddingTop: insets.top + 6 }]}>
+    <Animated.View 
+      entering={reduceMotion ? undefined : FadeInDown.duration(400).springify()}
+      style={[styles.headerWrap, { paddingTop: insets.top + 8 }]}
+    >
       <View
         style={[
           styles.header,
           shadows.sm,
           isHackathon && styles.headerHackathon,
           {
-            backgroundColor: talkBackEnabled ? '#000000' : glass.light,
-            borderColor: talkBackEnabled ? '#ffffff33' : glass.border,
+            backgroundColor: talkBackEnabled && !isHackathon ? '#000000' : glass.light,
+            borderColor: talkBackEnabled && !isHackathon ? '#ffffff33' : glass.border,
           },
         ]}
       >
@@ -42,14 +47,7 @@ export function AppHeader({ onMenuPress, onSearchPress, onSettingsPress }: Props
           color={talkBackEnabled ? '#ffffff' : colors.primary}
         />
       </Pressable>
-      <Text
-        style={[
-          styles.title,
-          { fontFamily: fontBold, color: talkBackEnabled ? '#ffffff' : colors.onSurface },
-        ]}
-      >
-        Ruta Libre
-      </Text>
+      <ParaTodosBrand compact showTagline={false} style={styles.brandCenter} />
       <View style={styles.trailingActions}>
         {onSettingsPress ? (
           <Pressable
@@ -77,7 +75,7 @@ export function AppHeader({ onMenuPress, onSearchPress, onSettingsPress }: Props
         </Pressable>
       </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -91,8 +89,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.edge - 4,
-    minHeight: spacing.touchMin,
-    borderRadius: radii.lg,
+    minHeight: spacing.touchMin + 4,
+    borderRadius: radii.pill,
     borderWidth: 1,
   },
   iconButton: {
@@ -101,6 +99,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: -8,
+  },
+  brandCenter: {
+    flex: 1,
+    justifyContent: 'center',
   },
   title: {
     flex: 1,
@@ -113,9 +115,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerHackathon: {
-    shadowColor: '#00e5ff',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
+    shadowColor: '#00fbfb',
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
+    borderColor: '#00fbfb',
   },
 });

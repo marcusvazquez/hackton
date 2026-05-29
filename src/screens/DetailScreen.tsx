@@ -70,7 +70,7 @@ export function DetailScreen({ onBack }: Props) {
                   backgroundColor: colors.surfaceContainerLowest,
                   borderColor: isHackathon ? colors.primary : colors.outlineVariant,
                 },
-            isHackathon && !talkBackEnabled && styles.scoreCardHackathon,
+            isHackathon && styles.scoreCardHackathon,
           ]}
         >
           <View style={styles.scoreRing}>

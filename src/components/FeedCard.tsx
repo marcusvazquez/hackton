@@ -21,6 +21,10 @@ type Props = {
   onToggleConfirm: (id: string) => void;
   onViewOnMap?: (item: FeedItem) => void;
   premium?: boolean;
+  simplified?: boolean;
+  fontSize?: number;
+  onReadAloud?: (text: string) => void;
+  showReadAloud?: boolean;
 };
 
 export function FeedCard({
@@ -29,6 +33,10 @@ export function FeedCard({
   onToggleConfirm,
   onViewOnMap,
   premium = false,
+  simplified = false,
+  fontSize = 16,
+  onReadAloud,
+  showReadAloud = false,
 }: Props) {
   const { reduceMotion, talkBackEnabled } = useAccessibility();
   const { colors, fontBold, fontRegular, isHackathon } = useAppTheme();
@@ -64,11 +72,14 @@ export function FeedCard({
 
   const cardBg = premium
     ? confirmedByMe
-      ? { backgroundColor: '#18181b', borderColor: 'rgba(59,130,246,0.4)' }
-      : { backgroundColor: '#09090b', borderColor: '#27272a' }
+      ? { backgroundColor: 'rgba(24, 24, 27, 0.85)', borderColor: 'rgba(59,130,246,0.5)' }
+      : { backgroundColor: 'rgba(9, 9, 11, 0.8)', borderColor: '#27272a' }
     : confirmedByMe
-      ? { backgroundColor: colors.surfaceContainerLowest, borderColor: colors.primary }
-      : { backgroundColor: colors.surfaceContainerLowest, borderColor: colors.outlineVariant };
+      ? { backgroundColor: 'rgba(255,255,255,0.95)', borderColor: colors.primary }
+      : { backgroundColor: 'rgba(255,255,255,0.85)', borderColor: colors.outlineVariant };
+
+  const descriptionSize = simplified ? fontSize : fontSize - 3;
+  const titleSize = simplified ? fontSize + 2 : fontSize;
 
   return (
     <Animated.View
@@ -129,17 +140,17 @@ export function FeedCard({
         </View>
 
         <View style={styles.badgesRow}>
-          {item.isReincidente ? (
+          {!simplified && item.isReincidente ? (
             <View style={[styles.badge, styles.badgeReincidente]}>
               <Text style={[styles.badgeText, { fontFamily: fontBold }]}>⚠️ Reincidente</Text>
             </View>
           ) : null}
-          {item.isAiVerified ? (
+          {!simplified && item.isAiVerified ? (
             <View style={[styles.badge, styles.badgeAi]}>
               <Text style={[styles.badgeText, { fontFamily: fontBold }]}>🤖 IA OK</Text>
             </View>
           ) : null}
-          {item.offline && isHackathon ? (
+          {!simplified && item.offline && isHackathon ? (
             <View style={[styles.badge, { borderColor: colors.secondary }]}>
               <Text style={[styles.badgeText, { fontFamily: fontBold, color: colors.secondary }]}>
                 OFFLINE
@@ -173,7 +184,7 @@ export function FeedCard({
           <Text
             style={[
               styles.title,
-              { fontFamily: fontBold },
+              { fontFamily: fontBold, fontSize: titleSize, lineHeight: titleSize + 6 },
               talkBackEnabled
                 ? styles.textTalkBack
                 : { color: premium ? '#ffffff' : colors.onSurface },
@@ -184,14 +195,29 @@ export function FeedCard({
           <Text
             style={[
               styles.description,
-              { fontFamily: fontRegular },
+              { fontFamily: fontRegular, fontSize: descriptionSize, lineHeight: descriptionSize + 6 },
               talkBackEnabled
                 ? styles.subtitleTalkBack
                 : { color: premium ? '#9ca3af' : colors.onSurfaceVariant },
             ]}
           >
-            {item.description}
+            {simplified ? item.zona : item.description}
           </Text>
+          {showReadAloud && onReadAloud ? (
+            <Pressable
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Leer publicación en voz alta"
+              accessibilityHint="Reproduce el título y la descripción con síntesis de voz"
+              onPress={() => onReadAloud(`${item.title}. ${item.description}`)}
+              style={[styles.readAloudBtn, { borderColor: colors.primary }]}
+            >
+              <MaterialIcons name="volume-up" size={18} color={colors.primary} />
+              <Text style={[styles.readAloudText, { fontFamily: fontBold, color: colors.primary, fontSize: descriptionSize }]}>
+                Leer en voz alta
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
@@ -458,9 +484,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
   },
   confirmText: {
     fontSize: 12,
@@ -472,5 +498,19 @@ const styles = StyleSheet.create({
   },
   subtitleTalkBack: {
     color: '#cccccc',
+  },
+  readAloudBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    alignSelf: 'flex-start',
+  },
+  readAloudText: {
+    fontSize: 12,
   },
 });

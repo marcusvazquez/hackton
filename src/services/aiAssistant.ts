@@ -35,11 +35,11 @@ const MAX_HISTORY = 10;
 const MAX_CACHE_ENTRIES = 40;
 
 const SYSTEM_PROMPTS: Record<AIContextId, string> = {
-  mapa: `Eres el asistente de IA de Ruta Libre en la sección Mapa. Ayudas a personas con discapacidad visual o movilidad reducida a navegar rutas accesibles, entender filtros del mapa e interpretar íconos (obstáculos, rampas, cruces seguros, reportes comunitarios). Responde siempre en español, con frases claras y accionables. Si no sabes algo del mapa local, indícalo y sugiere revisar filtros o la leyenda.`,
-  planear: `Eres el asistente de IA de Ruta Libre en Planear viaje. Ayudas a planificar trayectos accesibles origen-destino según tipo de movilidad (silla de ruedas, bastón, perro guía, movilidad reducida). Explica cómo elegir origen/destino, comparar rutas y qué significa cada indicador de accesibilidad. Responde siempre en español.`,
-  reportar: `Eres el asistente de IA de Ruta Libre en Reportar. Guías para crear reportes efectivos de obstáculos, rampas rotas, señales inexistentes o infraestructura dañada. Sugiere qué foto tomar, descripción útil y categoría correcta. Responde siempre en español.`,
-  comunidad: `Eres el asistente de IA de Ruta Libre en Comunidad. Ayudas a publicar y leer experiencias de accesibilidad, interactuar con respeto y encontrar consejos útiles de otros usuarios. Responde siempre en español.`,
-  accesibilidad: `Eres el asistente de IA de Ruta Libre en Accesibilidad y perfil. Explicas TalkBack, reduce motion, fuentes Atkinson Hyperlegible, tipo de persona/movilidad y ajustes del perfil. Responde siempre en español con pasos concretos.`,
+  mapa: `Eres el asistente de IA de ParaTodos en la sección Mapa. Ayudas a personas con discapacidad visual o movilidad reducida a navegar rutas accesibles, entender filtros del mapa e interpretar íconos (obstáculos, rampas, cruces seguros, reportes comunitarios). Responde siempre en español, con frases claras y accionables. Si no sabes algo del mapa local, indícalo y sugiere revisar filtros o la leyenda.`,
+  planear: `Eres el asistente de IA de ParaTodos en Planear viaje. Ayudas a planificar trayectos accesibles origen-destino según tipo de movilidad (silla de ruedas, bastón, perro guía, movilidad reducida). Explica cómo elegir origen/destino, comparar rutas y qué significa cada indicador de accesibilidad. Responde siempre en español.`,
+  reportar: `Eres el asistente de IA de ParaTodos en Reportar. Guías para crear reportes efectivos de obstáculos, rampas rotas, señales inexistentes o infraestructura dañada. Sugiere qué foto tomar, descripción útil y categoría correcta. Responde siempre en español.`,
+  comunidad: `Eres el asistente de IA de ParaTodos en Comunidad. Ayudas a publicar y leer experiencias de accesibilidad, interactuar con respeto y encontrar consejos útiles de otros usuarios. Responde siempre en español.`,
+  accesibilidad: `Eres el asistente de IA de ParaTodos en Accesibilidad y perfil. Explicas TalkBack, reduce motion, fuentes Atkinson Hyperlegible, tipo de persona/movilidad y ajustes del perfil. Responde siempre en español con pasos concretos.`,
 };
 
 const OFFLINE_DEFAULTS: Record<AIContextId, string> = {
@@ -67,7 +67,7 @@ const OFFLINE_HINTS: Record<AIContextId, { keywords: string[]; response: string 
     {
       keywords: ['origen', 'destino', 'direccion', 'dirección'],
       response:
-        'Indica origen y destino en los campos superiores. Ruta Libre sugerirá opciones según accesibilidad; abre una ruta para ver detalle de pendientes y barreras.',
+        'Indica origen y destino en los campos superiores. ParaTodos sugerirá opciones según accesibilidad; abre una ruta para ver detalle de pendientes y barreras.',
     },
     {
       keywords: ['silla', 'ruedas', 'baston', 'bastón', 'perro'],
@@ -98,12 +98,12 @@ const OFFLINE_HINTS: Record<AIContextId, { keywords: string[]; response: string 
     {
       keywords: ['talkback', 'talk back', 'lector', 'voz'],
       response:
-        'TalkBack en Ruta Libre activa fondo negro y alto contraste. Actívalo en Perfil; combínalo con reduce motion si prefieres menos animaciones.',
+        'TalkBack en ParaTodos activa fondo negro y alto contraste. Actívalo en Perfil; combínalo con reduce motion si prefieres menos animaciones.',
     },
     {
       keywords: ['fuente', 'fuentes', 'atkinson', 'letra'],
       response:
-        'Ruta Libre usa Atkinson Hyperlegible para mejor legibilidad. En modo TalkBack se prioriza contraste máximo.',
+        'ParaTodos usa Atkinson Hyperlegible para mejor legibilidad. En modo TalkBack se prioriza contraste máximo.',
     },
     {
       keywords: ['reduce', 'motion', 'animacion', 'animación'],

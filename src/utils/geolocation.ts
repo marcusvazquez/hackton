@@ -1,4 +1,8 @@
 import { Platform } from 'react-native';
+import {
+  getInsecureGeolocationMessage,
+  isGeolocationSecureContext,
+} from './secureContext';
 
 export type Coordinates = {
   latitude: number;
@@ -7,6 +11,7 @@ export type Coordinates = {
 
 export type GeolocationErrorCode =
   | 'unsupported'
+  | 'insecure_context'
   | 'permission_denied'
   | 'position_unavailable'
   | 'timeout'
@@ -27,8 +32,12 @@ export function getGeolocationErrorMessage(error: unknown): string {
     switch (error.code) {
       case 'unsupported':
         return 'Tu dispositivo o navegador no admite geolocalización.';
+      case 'insecure_context':
+        return getInsecureGeolocationMessage();
       case 'permission_denied':
-        return 'Permiso de ubicación denegado. Haz clic en el candado de la barra de direcciones y permite "Ubicación" para localhost.';
+        return Platform.OS === 'web'
+          ? 'Permiso de ubicación denegado. Toca el candado en la barra del navegador y permite Ubicación. Si abriste por IP (http://192…), usa npm run web:secure (URL https de Cloudflare en la terminal) o npm run web:tunnel.'
+          : 'Permiso de ubicación denegado. Activa ubicación en ajustes del dispositivo.';
       case 'position_unavailable':
         return Platform.OS === 'web'
           ? 'No se detectó ubicación. En PC: activa Ubicación en Windows (Configuración → Privacidad → Ubicación) y recarga la página. También puedes escribir tu dirección manualmente.'
@@ -98,6 +107,10 @@ function tryGetPositionWeb(options: WebGeoOptions): Promise<Coordinates> {
  * En laptop/PC sin GPS el modo preciso suele devolver error 2.
  */
 async function getPositionWeb(): Promise<Coordinates> {
+  if (!isGeolocationSecureContext()) {
+    throw new GeolocationError('insecure_context', getInsecureGeolocationMessage());
+  }
+
   try {
     return await tryGetPositionWeb({
       enableHighAccuracy: true,

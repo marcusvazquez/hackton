@@ -1,7 +1,15 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import NetInfo from '@react-native-community/netinfo';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,6 +19,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -35,8 +44,7 @@ import {
   syncQueuedMessages,
 } from '../services/aiAssistant';
 import { spacing } from '../theme/colors';
-import { mapOverlay } from '../theme/layout';
-import { radii, shadows } from '../theme/shadows';
+import { radii } from '../theme/shadows';
 import { TAB_LABELS, TabId } from '../types/navigation';
 import { uriToImageAttachment } from '../utils/imageAttachment';
 import { isNetworkOnline } from '../utils/networkStatus';
@@ -49,9 +57,15 @@ import {
   playMessageReceivedSound,
 } from '../utils/talkbackSounds';
 
+export type AIAssistantHandle = {
+  submitVoiceText: (text: string) => Promise<string>;
+  openSheet: () => void;
+};
+
 type Props = {
   activeTab: TabId;
   overlay?: 'perfil' | 'detalle' | null;
+  onOpenScanner?: (mode: 'scan' | 'guided') => void;
 };
 
 const CONTEXT_LABELS: Record<AIContextId, string> = {
@@ -65,7 +79,10 @@ function resolveContext(activeTab: TabId, overlay?: 'perfil' | 'detalle' | null)
   return activeTab;
 }
 
-export function AIAssistant({ activeTab, overlay = null }: Props) {
+export const AIAssistant = forwardRef<AIAssistantHandle, Props>(function AIAssistant(
+  { activeTab, overlay = null, onOpenScanner },
+  ref,
+) {
   const context = resolveContext(activeTab, overlay);
   const { talkBackEnabled, reduceMotion, speak } = useAccessibility();
   const { colors, isHackathon } = useAppTheme();
@@ -255,6 +272,72 @@ export function AIAssistant({ activeTab, overlay = null }: Props) {
     transform: [{ translateY: translateY.value }],
   }));
 
+  const submitVoiceText = useCallback(
+    async (text: string): Promise<string> => {
+      const trimmed = text.trim();
+      if (!trimmed || loading) return '';
+
+      if (talkBackEnabled) {
+        playTapSound();
+        void speak('Mensaje enviado, esperando respuesta');
+      }
+
+      const userMessage: ChatMessage = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: trimmed,
+      };
+
+      setLoading(true);
+      setMessages((prev) => [...prev, userMessage].slice(-10));
+
+      try {
+        const history = [...messagesRef.current, userMessage].slice(-10);
+        const { content } = await requestAssistantReply(
+          context,
+          userMessage.content,
+          history,
+          isConnected,
+        );
+        const assistantMessage: ChatMessage = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content,
+        };
+        setMessages((prev) => [...prev, assistantMessage].slice(-10));
+
+        if (talkBackEnabled) {
+          playMessageReceivedSound();
+        }
+        return content;
+      } catch {
+        if (talkBackEnabled) playErrorSound();
+        return 'No pude procesar tu solicitud. Intenta de nuevo.';
+      } finally {
+        setLoading(false);
+        requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: !reduceMotion }));
+      }
+    },
+    [context, isConnected, loading, reduceMotion, speak, talkBackEnabled],
+  );
+
+  const openSheet = useCallback(() => {
+    setOpen(true);
+    if (talkBackEnabled) {
+      playNavigationSound();
+      void speak('Asistente de inteligencia artificial abierto');
+    }
+  }, [speak, talkBackEnabled]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      submitVoiceText,
+      openSheet,
+    }),
+    [openSheet, submitVoiceText],
+  );
+
   const sendMessage = async () => {
     const trimmed = input.trim();
     if ((!trimmed && !pendingImage) || loading) return;
@@ -305,50 +388,25 @@ export function AIAssistant({ activeTab, overlay = null }: Props) {
     }
   };
 
+  const startGuidedVision = () => {
+    if (talkBackEnabled) playTapSound();
+    setOpen(false);
+    setTimeout(() => {
+      onOpenScanner?.('guided');
+    }, 120);
+    void speakMessage(
+      'Modo guía con cámara activado. Si el navegador lo pide, permite el acceso a la cámara.',
+    );
+  };
+
   const sheetBackground = talkBackEnabled ? '#000000' : colors.surfaceContainerLowest;
   const sheetText = talkBackEnabled ? '#ffffff' : colors.onSurface;
   const sheetMuted = talkBackEnabled ? '#e5e5e5' : colors.onSurfaceVariant;
   const userBubble = talkBackEnabled ? colors.talkBackBlue : colors.primary;
   const assistantBubble = talkBackEnabled ? '#1a1a1a' : colors.surfaceContainerLow;
-  const fabColors = talkBackEnabled
-    ? { bg: colors.talkBackBlue, border: '#ffffff', icon: '#ffffff' }
-    : { bg: colors.primary, border: colors.onPrimary, icon: colors.onPrimary };
 
   return (
     <>
-      <View pointerEvents="box-none" style={styles.fabContainer}>
-        <Pressable
-          accessible={true}
-          importantForAccessibility="yes"
-          accessibilityLabel="Abrir asistente de inteligencia artificial"
-          accessibilityHint="Guía de accesibilidad con respuestas según la pantalla activa"
-          accessibilityRole="button"
-          onPress={() => {
-            setOpen(true);
-            if (talkBackEnabled) {
-              playNavigationSound();
-              void speak('Asistente de inteligencia artificial abierto');
-            }
-          }}
-          style={({ pressed }) => [
-            styles.fab,
-            {
-              backgroundColor: fabColors.bg,
-              borderColor: isHackathon ? colors.secondary : fabColors.border,
-              opacity: pressed ? 0.92 : 1,
-            },
-            shadows.lg,
-          ]}
-        >
-          <View style={[styles.fabBadge, { backgroundColor: colors.secondaryContainer }]}>
-            <Text style={[styles.fabBadgeText, { fontFamily: fontBold, color: colors.onSecondaryContainer }]}>
-              IA
-            </Text>
-          </View>
-          <MaterialIcons name="pets" size={28} color={fabColors.icon} accessibilityElementsHidden />
-        </Pressable>
-      </View>
-
       <Modal animationType={reduceMotion ? 'none' : 'slide'} transparent visible={open} onRequestClose={closeSheet}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -401,6 +459,33 @@ export function AIAssistant({ activeTab, overlay = null }: Props) {
                   </Pressable>
                 </View>
               </View>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Escanear entorno con cámara en vivo"
+                  style={[styles.actionChip, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.outlineVariant }]}
+                  onPress={() => {
+                    if (talkBackEnabled) playTapSound();
+                    setOpen(false);
+                    setTimeout(() => {
+                      onOpenScanner?.('scan');
+                    }, 120);
+                  }}
+                >
+                  <MaterialIcons name="camera" size={18} color={sheetText} />
+                  <Text style={[styles.actionChipText, { color: sheetText, fontFamily: fontBold }]}>Escanear entorno</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Guía con cámara en vivo"
+                  style={[styles.actionChip, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.outlineVariant }]}
+                  onPress={startGuidedVision}
+                >
+                  <MaterialIcons name="visibility" size={18} color={sheetText} />
+                  <Text style={[styles.actionChipText, { color: sheetText, fontFamily: fontBold }]}>Guía con cámara</Text>
+                </Pressable>
+              </ScrollView>
 
               <FlatList
                 ref={listRef}
@@ -556,37 +641,9 @@ export function AIAssistant({ activeTab, overlay = null }: Props) {
       </Modal>
     </>
   );
-}
+});
 
 const styles = StyleSheet.create({
-  fabContainer: {
-    position: 'absolute',
-    bottom: mapOverlay.aiFabBottom,
-    right: spacing.edge,
-    zIndex: 30,
-  },
-  fab: {
-    width: 64,
-    height: 64,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-  },
-  fabBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  fabBadgeText: {
-    fontSize: 10,
-  },
   modalRoot: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -626,6 +683,22 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     marginTop: 2,
+  },
+  chipsRow: {
+    paddingBottom: spacing.gutter,
+    gap: 8,
+  },
+  actionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    gap: 6,
+  },
+  actionChipText: {
+    fontSize: 14,
   },
   statusRow: {
     flexDirection: 'row',

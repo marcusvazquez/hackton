@@ -20,12 +20,15 @@ import { useMapLocation } from '../context/MapLocationContext';
 import { useMapRouting } from '../context/MapRoutingContext';
 import { SEARCH_SUGGESTIONS } from '../data/markers';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { useMapOverlayInsets } from '../hooks/useMapOverlayInsets';
 import { spacing } from '../theme/colors';
+import { hackathonSearch } from '../theme/hackathonLayout';
 import { radii, shadows } from '../theme/shadows';
 
 export function SearchBar() {
   const { reduceMotion } = useAccessibility();
-  const { colors, glass, fontRegular } = useAppTheme();
+  const { colors, glass, fontRegular, isHackathon, fontNav } = useAppTheme();
+  const overlay = useMapOverlayInsets();
   const { geocodeAndFly, locateUser, locationLoading } = useMapLocation();
   const { calculateRouteTo, isCalculating } = useMapRouting();
   const [focused, setFocused] = useState(false);
@@ -93,12 +96,21 @@ export function SearchBar() {
     setFocused(false);
   };
 
+  const inputFont = isHackathon ? fontNav : fontRegular;
+  const inputSize = isHackathon ? hackathonSearch.inputSize : 18;
+  const containerPadding = isHackathon ? hackathonSearch.padding : 10;
+
   return (
-    <View style={styles.wrapper}>
+    <View
+      style={[
+        styles.wrapper,
+        { top: overlay.searchTop ?? 8 },
+      ]}
+    >
       <Animated.View
         style={[
           styles.container,
-          { backgroundColor: glass.light },
+          { backgroundColor: glass.light, padding: containerPadding },
           containerStyle,
         ]}
       >
@@ -112,7 +124,11 @@ export function SearchBar() {
           {locationLoading ? (
             <ActivityIndicator color={colors.primary} size="small" />
           ) : (
-            <MaterialIcons name="my-location" size={24} color={colors.primary} />
+            <MaterialIcons
+              name="my-location"
+              size={isHackathon ? hackathonSearch.iconSize : 24}
+              color={colors.primary}
+            />
           )}
         </Pressable>
         <View style={styles.inputWrap}>
@@ -124,27 +140,57 @@ export function SearchBar() {
             onSubmitEditing={handleSearchSubmit}
             placeholder=""
             returnKeyType="search"
-            style={[styles.input, { fontFamily: fontRegular, color: colors.onSurface }]}
+            style={[
+              styles.input,
+              {
+                fontFamily: inputFont,
+                color: colors.onSurface,
+                fontSize: inputSize,
+                paddingVertical: isHackathon ? 6 : 8,
+              },
+            ]}
             value={query}
           />
           {!query && (
             <Animated.Text
               pointerEvents="none"
-              style={[styles.placeholder, { fontFamily: fontRegular, color: colors.outline }, placeholderStyle]}
+              style={[
+                styles.placeholder,
+                {
+                  fontFamily: inputFont,
+                  color: colors.outline,
+                  fontSize: isHackathon ? hackathonSearch.placeholderSize : 18,
+                },
+                placeholderStyle,
+              ]}
             >
               ¿A dónde vas?
             </Animated.Text>
           )}
         </View>
         <Pressable accessibilityLabel="Búsqueda por voz" style={styles.iconBtn}>
-          <MaterialIcons name="mic" size={24} color={colors.primary} />
+          <MaterialIcons
+            name="mic"
+            size={isHackathon ? hackathonSearch.iconSize : 24}
+            color={colors.primary}
+          />
         </Pressable>
         <Pressable
           accessibilityLabel="Buscar y centrar destino en el mapa"
           onPress={handleSearchSubmit}
-          style={[styles.directionsBtn, { backgroundColor: colors.primary }]}
+          style={[
+            styles.directionsBtn,
+            {
+              backgroundColor: colors.primary,
+              padding: isHackathon ? hackathonSearch.directionsPadding : 10,
+            },
+          ]}
         >
-          <MaterialIcons name="directions" size={24} color={colors.onPrimary} />
+          <MaterialIcons
+            name="directions"
+            size={isHackathon ? hackathonSearch.iconSize : 24}
+            color={colors.onPrimary}
+          />
         </Pressable>
       </Animated.View>
 
@@ -188,7 +234,6 @@ export function SearchBar() {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    top: 8,
     left: spacing.edge,
     right: spacing.edge,
     zIndex: 20,

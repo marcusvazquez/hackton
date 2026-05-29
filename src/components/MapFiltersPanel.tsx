@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useMapRouting } from '../context/MapRoutingContext';
 import { ENV_FILTERS } from '../data/routes';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { hackathonNeonText, hackathonTypography } from '../theme/hackathonLayout';
 import { spacing } from '../theme/colors';
 import { radii } from '../theme/shadows';
 import {
@@ -20,7 +21,9 @@ const PROFILE_ICONS: Record<DisabilityProfile, keyof typeof MaterialIcons.glyphM
 };
 
 export function MapFiltersPanel() {
-  const { colors, fontBold, fontRegular } = useAppTheme();
+  const { colors, fontBold, fontRegular, isHackathon, fontNav } = useAppTheme();
+  const labelFont = isHackathon ? fontNav : fontBold;
+  const bodyFont = isHackathon ? fontNav : fontRegular;
   const {
     disabilityProfile,
     setDisabilityProfile,
@@ -38,13 +41,33 @@ export function MapFiltersPanel() {
     return (
       <Pressable
         onPress={() => setExpanded(true)}
-        style={[styles.collapsed, { backgroundColor: colors.surfaceContainer, borderColor: colors.outlineVariant }]}
+        style={[
+          styles.collapsed,
+          {
+            backgroundColor: colors.surfaceContainer,
+            borderColor: colors.outlineVariant,
+            paddingHorizontal: isHackathon ? 10 : 14,
+            paddingVertical: isHackathon ? 8 : 10,
+          },
+        ]}
         accessibilityRole="button"
         accessibilityLabel="Abrir filtros de mapa"
       >
         <MaterialIcons name="tune" size={20} color={colors.primary} />
-        <Text style={[styles.collapsedText, { fontFamily: fontBold, color: colors.onSurface }]}>
-          Filtros · {activeCount} activos · {DISABILITY_PROFILE_LABELS[disabilityProfile]}
+        <Text
+          style={[
+            styles.collapsedText,
+            {
+              fontFamily: labelFont,
+              color: colors.onSurface,
+              fontSize: isHackathon ? hackathonTypography.bodySm : 14,
+            },
+          ]}
+          numberOfLines={1}
+        >
+          {isHackathon
+            ? `Filtros (${activeCount}) · ${DISABILITY_PROFILE_LABELS[disabilityProfile]}`
+            : `Filtros · ${activeCount} activos · ${DISABILITY_PROFILE_LABELS[disabilityProfile]}`}
         </Text>
         <MaterialIcons name="expand-less" size={20} color={colors.onSurfaceVariant} />
       </Pressable>
@@ -54,7 +77,16 @@ export function MapFiltersPanel() {
   return (
     <View style={[styles.panel, { backgroundColor: colors.surfaceContainerLow, borderColor: colors.outlineVariant }]}>
       <Pressable onPress={() => setExpanded(false)} style={styles.panelHeader}>
-        <Text style={[styles.panelTitle, { fontFamily: fontBold, color: colors.onSurface }]}>
+        <Text
+          style={[
+            styles.panelTitle,
+            {
+              fontFamily: labelFont,
+              color: colors.onSurface,
+              fontSize: isHackathon ? hackathonTypography.body : undefined,
+            },
+          ]}
+        >
           Filtros rápidos
         </Text>
         <MaterialIcons name="expand-more" size={24} color={colors.onSurfaceVariant} />
@@ -63,24 +95,54 @@ export function MapFiltersPanel() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
         {ENV_FILTERS.map((f) => {
           const on = envFilters[f.id] ?? false;
+          const accent = 'accent' in f ? f.accent : colors.primary;
+          const neon = isHackathon;
           return (
             <Pressable
               key={f.id}
               onPress={() => toggleEnvFilter(f.id)}
               style={[
                 styles.chip,
-                {
-                  borderColor: on ? colors.primary : colors.outlineVariant,
-                  backgroundColor: on ? colors.primaryFixed : colors.surfaceContainer,
-                },
+                neon && styles.chipNeon,
+                neon
+                  ? {
+                      borderColor: on ? accent : colors.outlineVariant,
+                      backgroundColor: on ? `${accent}18` : colors.surfaceContainer,
+                      ...(on
+                        ? {
+                            shadowColor: accent,
+                            shadowOffset: { width: 0, height: 0 },
+                            shadowOpacity: 0.45,
+                            shadowRadius: 8,
+                            elevation: 6,
+                          }
+                        : {}),
+                    }
+                  : {
+                      borderColor: on ? colors.primary : colors.outlineVariant,
+                      backgroundColor: on ? colors.primaryFixed : colors.surfaceContainer,
+                    },
               ]}
             >
-              <MaterialIcons name={f.icon} size={18} color={on ? colors.primary : colors.onSurfaceVariant} />
+              <MaterialIcons
+                name={f.icon}
+                size={18}
+                color={neon ? (on ? accent : colors.onSurfaceVariant) : on ? colors.primary : colors.onSurfaceVariant}
+              />
               <Text
                 style={[
                   styles.chipText,
-                  { fontFamily: fontRegular, color: on ? colors.onPrimaryFixed : colors.onSurfaceVariant },
+                  {
+                    fontFamily: bodyFont,
+                    fontSize: isHackathon ? hackathonTypography.bodySm : undefined,
+                  },
+                  neon && !on && { color: colors.onSurfaceVariant },
+                  neon && on && hackathonNeonText(accent),
+                  !neon && {
+                    color: on ? colors.onPrimaryFixed : colors.onSurfaceVariant,
+                  },
                 ]}
+                numberOfLines={1}
               >
                 {f.label}
               </Text>
@@ -89,7 +151,16 @@ export function MapFiltersPanel() {
         })}
       </ScrollView>
 
-      <Text style={[styles.sectionLabel, { fontFamily: fontBold, color: colors.onSurface }]}>
+      <Text
+        style={[
+          styles.sectionLabel,
+          {
+            fontFamily: labelFont,
+            color: colors.onSurface,
+            fontSize: isHackathon ? hackathonTypography.bodySm : undefined,
+          },
+        ]}
+      >
         Perfil de discapacidad
       </Text>
       <View style={styles.mobilityGrid}>
@@ -115,7 +186,11 @@ export function MapFiltersPanel() {
               <Text
                 style={[
                   styles.mobilityLabel,
-                  { fontFamily: fontRegular, color: on ? colors.onSecondaryFixed : colors.onSurfaceVariant },
+                  {
+                    fontFamily: bodyFont,
+                    color: on ? colors.onSecondaryFixed : colors.onSurfaceVariant,
+                    fontSize: isHackathon ? hackathonTypography.bodyXs : undefined,
+                  },
                 ]}
                 numberOfLines={2}
               >
@@ -164,6 +239,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     marginRight: 8,
+  },
+  chipNeon: {
+    borderWidth: 2,
   },
   chipText: { fontSize: 13 },
   sectionLabel: { fontSize: 14, marginBottom: 8 },

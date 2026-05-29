@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Ruta Libre",
+    "name": "ParaTodos",
     "slug": "ruta-libre",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,7 +14,8 @@
         "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
       },
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Ruta Libre necesita tu ubicación para mostrarte rutas accesibles cercanas y centrar el mapa en tu posición."
+        "NSLocationWhenInUseUsageDescription": "ParaTodos necesita tu ubicación para mostrarte rutas accesibles cercanas y centrar el mapa en tu posición.",
+        "NSCameraUsageDescription": "Ruta Libre usa la cámara para detectar obstáculos cercanos y alertarte mediante vibración."
       }
     },
     "android": {
@@ -33,7 +34,9 @@
       },
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "VIBRATE"
       ]
     },
     "web": {
@@ -42,16 +45,30 @@
     "plugins": [
       "expo-font",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "ParaTodos usa la cámara para detectar obstáculos y vibrar cuando hay riesgo en tu camino.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
         "expo-image-picker",
         {
-          "photosPermission": "Ruta Libre necesita acceso a tus fotos para enviar imágenes al asistente y reportes.",
-          "cameraPermission": "Ruta Libre necesita la cámara para tomar fotos de obstáculos y enviarlas al asistente."
+          "photosPermission": "ParaTodos necesita acceso a tus fotos para enviar imágenes al asistente y reportes.",
+          "cameraPermission": "ParaTodos necesita la cámara para tomar fotos de obstáculos y escanear tu entorno."
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Ruta Libre usa tu ubicación para planear rutas accesibles en Tijuana."
+          "locationWhenInUsePermission": "ParaTodos usa tu ubicación para planear rutas accesibles en Tijuana."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "ParaTodos necesita el micrófono para el asistente de voz."
         }
       ]
     ],

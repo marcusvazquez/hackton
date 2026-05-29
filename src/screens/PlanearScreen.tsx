@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useCallback, useMemo, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ImageBackground,
@@ -17,6 +18,7 @@ import { RouteOptionCard } from '../components/RouteOptionCard';
 import { SectionHeader } from '../components/SectionHeader';
 import { useMapLocation } from '../context/MapLocationContext';
 import { ENV_FILTERS, MOBILITY_SUPPORT, ROUTE_OPTIONS } from '../data/routes';
+import { useAdaptiveUI } from '../hooks/useAdaptiveUI';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { getGeolocationErrorMessage } from '../utils/geolocation';
 import {
@@ -33,6 +35,7 @@ const EXPLORE_MAP_URI =
 type Props = {
   onOpenDetail?: () => void;
   onOpenExpert?: () => void;
+  onRegisterVoiceDestination?: (handler: ((text: string) => void) | null) => void;
 };
 
 type EnvFilterMeta = {
@@ -68,8 +71,9 @@ function getEnvMeta(filterId: string, label: string, icon: string): EnvFilterMet
   };
 }
 
-export function PlanearScreen({ onOpenDetail, onOpenExpert }: Props) {
+export function PlanearScreen({ onOpenDetail, onOpenExpert, onRegisterVoiceDestination }: Props) {
   const { colors, fontBold, fontRegular, isHackathon, spacing } = useAppTheme();
+  const adaptive = useAdaptiveUI();
   const { locateUser, flyTo, geocodeAndFly } = useMapLocation();
 
   const [origin, setOrigin] = useState('');
@@ -84,6 +88,14 @@ export function PlanearScreen({ onOpenDetail, onOpenExpert }: Props) {
   );
   const [mobilityId, setMobilityId] = useState<string>(MOBILITY_SUPPORT[0]?.id ?? 'wheelchair');
 
+  useEffect(() => {
+    if (!onRegisterVoiceDestination) return;
+    onRegisterVoiceDestination((text) => {
+      setDestination(text.trim());
+    });
+    return () => onRegisterVoiceDestination(null);
+  }, [onRegisterVoiceDestination]);
+
   const gray = colors.onSurfaceVariant;
   const hasOrigin = origin.trim().length > 0;
   const hasDestination = destination.trim().length > 0;
@@ -97,6 +109,9 @@ export function PlanearScreen({ onOpenDetail, onOpenExpert }: Props) {
   const handleUseMyLocation = useCallback(async () => {
     setOriginLoading(true);
     setLocationError(null);
+    if (adaptive.useHaptics) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     try {
       const { address, coords } = await locateUser();
       setOrigin(address);
@@ -106,7 +121,7 @@ export function PlanearScreen({ onOpenDetail, onOpenExpert }: Props) {
     } finally {
       setOriginLoading(false);
     }
-  }, [locateUser]);
+  }, [adaptive.useHaptics, locateUser]);
 
   const handleDestinationSubmit = useCallback(async () => {
     const trimmed = destination.trim();
@@ -160,10 +175,11 @@ export function PlanearScreen({ onOpenDetail, onOpenExpert }: Props) {
             >
               <Pressable
                 accessibilityLabel="Usar mi ubicación actual"
+                accessibilityHint="Obtiene tu posición GPS como punto de partida"
                 accessibilityRole="button"
                 disabled={originLoading}
                 onPress={handleUseMyLocation}
-                style={styles.locationBtn}
+                style={[styles.locationBtn, { minHeight: adaptive.minTouchTarget, minWidth: adaptive.minTouchTarget }]}
               >
                 {originLoading ? (
                   <ActivityIndicator color={colors.primary} size="small" />
@@ -204,10 +220,13 @@ export function PlanearScreen({ onOpenDetail, onOpenExpert }: Props) {
             >
               <MaterialIcons name="search" size={22} color={colors.primary} />
               <TextInput
+                accessible
+                accessibilityLabel="Campo de destino"
+                accessibilityHint="Escribe o dicta a dónde quieres ir. También puedes usar el asistente de voz"
                 value={destination}
                 onChangeText={setDestination}
                 placeholder="¿A dónde vas?"
-                style={[styles.input, { fontFamily: fontRegular, color: colors.onSurface }]}
+                style={[styles.input, { fontFamily: fontRegular, fontSize: adaptive.fontSize, color: colors.onSurface }]}
                 placeholderTextColor={colors.onSurfaceVariant}
                 onSubmitEditing={handleDestinationSubmit}
                 onBlur={handleDestinationSubmit}
@@ -215,6 +234,10 @@ export function PlanearScreen({ onOpenDetail, onOpenExpert }: Props) {
             </View>
 
             <Pressable
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Buscar rutas accesibles"
+              accessibilityHint="Calcula opciones de ruta según tus filtros"
               onPress={handleSearch}
               disabled={!canSearch}
               style={[
@@ -222,11 +245,12 @@ export function PlanearScreen({ onOpenDetail, onOpenExpert }: Props) {
                 {
                   backgroundColor: canSearch ? colors.primary : colors.surfaceContainerHigh,
                   opacity: canSearch ? 1 : 0.6,
+                  minHeight: adaptive.minTouchTarget,
                 },
               ]}
             >
-              <MaterialIcons name="directions" size={22} color={colors.onPrimary} />
-              <Text style={[styles.searchBtnText, { fontFamily: fontBold, color: colors.onPrimary }]}>
+              <MaterialIcons name="directions" size={adaptive.largeIcons ? 28 : 22} color={colors.onPrimary} />
+              <Text style={[styles.searchBtnText, { fontFamily: fontBold, fontSize: adaptive.fontSize, color: colors.onPrimary }]}>
                 Buscar rutas
               </Text>
             </Pressable>
@@ -307,16 +331,24 @@ export function PlanearScreen({ onOpenDetail, onOpenExpert }: Props) {
                   return (
                     <Pressable
                       key={item.id}
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={label}
                       onPress={() => setMobilityId(item.id)}
                       style={[
                         styles.mobilityTile,
-                        { backgroundColor: bg, borderColor: selected ? bg : colors.outlineVariant },
+                        {
+                          backgroundColor: bg,
+                          borderColor: selected ? bg : colors.outlineVariant,
+                          minHeight: adaptive.minTouchTarget + 40,
+                        },
                         selected && shadows.sm,
                       ]}
                     >
                       <MaterialIcons
                         name={item.icon}
-                        size={36}
+                        size={adaptive.largeIcons ? 44 : 36}
                         color={selected ? '#ffffff' : gray}
                       />
                       <Text
@@ -409,7 +441,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     paddingHorizontal: 14,
     paddingVertical: 4,
     marginBottom: 12,
@@ -420,7 +452,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     borderWidth: 1,
-    borderRadius: radii.sm,
+    borderRadius: radii.pill,
     paddingHorizontal: 14,
     minHeight: 52,
     marginBottom: 12,
@@ -435,7 +467,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 16,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     marginBottom: 16,
   },
   searchBtnText: { fontSize: 16 },

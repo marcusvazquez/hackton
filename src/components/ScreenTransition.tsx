@@ -11,12 +11,10 @@ type Props = {
 export function ScreenTransition({ screenKey, children }: Props) {
   const { screenEnter } = useAnimations();
 
-  const entering = Platform.OS === 'web' ? undefined : screenEnter;
-
   return (
     <Animated.View
       key={screenKey}
-      entering={entering}
+      entering={screenEnter}
       style={styles.container}
     >
       {children}

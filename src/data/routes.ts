@@ -109,13 +109,13 @@ export const MOBILITY_SUPPORT = [
 ];
 
 export const ENV_FILTERS = [
-  { id: 'ramps', label: 'Rampas', icon: 'ramp-right' as const },
-  { id: 'elevators', label: 'Elevadores', icon: 'elevator' as const },
-  { id: 'restrooms', label: 'Baños', icon: 'wc' as const },
-  { id: 'lighting', label: 'Iluminación', icon: 'light-mode' as const },
-  { id: 'quiet', label: 'Zona tranquila', icon: 'volume-off' as const },
-  { id: 'shade', label: 'Sombra', icon: 'wb-cloudy' as const },
-];
+  { id: 'ramps', label: 'Rampas', icon: 'ramp-right' as const, accent: '#00fbfb' },
+  { id: 'elevators', label: 'Elevadores', icon: 'elevator' as const, accent: '#60ff99' },
+  { id: 'restrooms', label: 'Baños', icon: 'wc' as const, accent: '#ff4a8e' },
+  { id: 'lighting', label: 'Iluminación', icon: 'light-mode' as const, accent: '#ffdd00' },
+  { id: 'quiet', label: 'Zona tranquila', icon: 'volume-off' as const, accent: '#00dddd' },
+  { id: 'shade', label: 'Sombra', icon: 'wb-cloudy' as const, accent: '#a78bfa' },
+] as const;
 
 /** Nodos del grafo peatonal — Zona Centro / Río, Tijuana */
 export const ROUTE_GRAPH_NODES: RouteGraphNode[] = [

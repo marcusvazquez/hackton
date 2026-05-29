@@ -10,17 +10,20 @@ import Animated, {
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useAnimations } from '../hooks/useAnimations';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { useMapOverlayInsets } from '../hooks/useMapOverlayInsets';
 import { spacing } from '../theme/colors';
-import { mapOverlay } from '../theme/layout';
 import { radii, shadows } from '../theme/shadows';
 
 type Props = {
   onPress: () => void;
+  size?: number;
 };
 
-export function ReportFab({ onPress }: Props) {
+export function ReportFab({ onPress, size = 60 }: Props) {
   const { reduceMotion } = useAccessibility();
   const { colors, isHackathon } = useAppTheme();
+  const overlay = useMapOverlayInsets();
+  const fabSize = isHackathon ? Math.min(size, 52) : size;
   const { fabEnter } = useAnimations();
   const scale = useSharedValue(1);
   const rotate = useSharedValue(0);
@@ -58,7 +61,10 @@ export function ReportFab({ onPress }: Props) {
   }));
 
   return (
-    <Animated.View entering={fabEnter} style={styles.wrapper}>
+    <Animated.View
+      entering={fabEnter}
+      style={[styles.wrapper, { bottom: overlay.reportFabBottom }]}
+    >
       <Pressable
         accessible={true}
         importantForAccessibility="yes"
@@ -73,6 +79,8 @@ export function ReportFab({ onPress }: Props) {
           style={[
             styles.fab,
             {
+              width: fabSize,
+              height: fabSize,
               backgroundColor: colors.secondaryContainer,
               borderColor: isHackathon ? colors.primary : '#ffffff',
             },
@@ -82,7 +90,11 @@ export function ReportFab({ onPress }: Props) {
           {ripples.map((id) => (
             <Ripple key={id} />
           ))}
-          <MaterialIcons name="add-a-photo" size={32} color={colors.onSecondaryContainer} />
+          <MaterialIcons
+            name="add-a-photo"
+            size={fabSize >= 72 ? 40 : fabSize >= 52 ? 28 : 32}
+            color={colors.onSecondaryContainer}
+          />
         </Animated.View>
       </Pressable>
     </Animated.View>
@@ -111,13 +123,10 @@ function Ripple() {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    bottom: mapOverlay.reportFabBottom,
     right: spacing.edge,
     zIndex: 20,
   },
   fab: {
-    width: 60,
-    height: 60,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',

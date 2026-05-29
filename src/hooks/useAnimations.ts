@@ -42,7 +42,7 @@ export function useAnimations() {
               .easing(Easing.out(Easing.quad)),
       feedEnter: reduceMotion
         ? undefined
-        : FadeInDown.duration(300).easing(Easing.out(Easing.quad)),
+        : FadeInDown.duration(400).springify().damping(16).stiffness(200),
       bounceEase,
       smoothEase,
       navEase,

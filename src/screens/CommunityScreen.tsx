@@ -21,8 +21,10 @@ import {
   INITIAL_USER_POINTS,
   POINTS_PER_CONFIRM,
 } from '../data/community';
+import { useAdaptiveUI } from '../hooks/useAdaptiveUI';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { speakMessage } from '../utils/playGeneratedAudio';
 import { spacing } from '../theme/colors';
 import { SCROLL_BOTTOM_INSET } from '../theme/layout';
 import { radii, shadows } from '../theme/shadows';
@@ -35,7 +37,8 @@ type Props = {
 };
 
 export function CommunityScreen({ onGoToReport, onViewOnMap }: Props) {
-  const { talkBackEnabled } = useAccessibility();
+  const { talkBackEnabled, speak, personType } = useAccessibility();
+  const adaptive = useAdaptiveUI();
   const { colors, fontBold, fontRegular, isHackathon } = useAppTheme();
   const { isOnline } = useNetworkStatus();
 
@@ -75,7 +78,13 @@ export function CommunityScreen({ onGoToReport, onViewOnMap }: Props) {
     [confirmados],
   );
 
-  const premium = isHackathon && !talkBackEnabled;
+  const premium = isHackathon;
+  const isVisual = personType === 'visual';
+  const isCognitiva = personType === 'cognitiva';
+
+  const handleReadAloud = useCallback((text: string) => {
+    void speakMessage(text);
+  }, []);
 
   return (
     <View
@@ -131,17 +140,6 @@ export function CommunityScreen({ onGoToReport, onViewOnMap }: Props) {
                 Reportes de Comunidad
               </Text>
             </View>
-            <View
-              style={[
-                styles.pointsBadge,
-                { backgroundColor: colors.secondaryFixed, borderColor: colors.secondary },
-              ]}
-            >
-              <MaterialIcons name="emoji-events" size={16} color={colors.onSecondaryFixed} />
-              <Text style={[styles.pointsText, { fontFamily: fontBold, color: colors.onSecondaryFixed }]}>
-                {usuarioPuntos} pts
-              </Text>
-            </View>
           </View>
         ) : null}
 
@@ -160,12 +158,6 @@ export function CommunityScreen({ onGoToReport, onViewOnMap }: Props) {
               Confirma los reportes activos de otros usuarios para actualizar el mapa interactivo
               de Tijuana en tiempo real.
             </Text>
-            <View style={styles.auditPointsRow}>
-              <MaterialIcons name="emoji-events" size={18} color="#fbbf24" />
-              <Text style={[styles.auditPoints, { fontFamily: fontBold }]}>
-                {usuarioPuntos} pts ciudadanos
-              </Text>
-            </View>
           </View>
         ) : null}
 
@@ -299,6 +291,10 @@ export function CommunityScreen({ onGoToReport, onViewOnMap }: Props) {
             confirmedByMe={confirmados[item.id] ?? false}
             onToggleConfirm={handleConfirmar}
             onViewOnMap={onViewOnMap}
+            simplified={isCognitiva || adaptive.simplifiedUI}
+            fontSize={adaptive.fontSize}
+            showReadAloud={isVisual}
+            onReadAloud={handleReadAloud}
           />
         ))}
 
@@ -464,6 +460,7 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.edge,
     paddingBottom: SCROLL_BOTTOM_INSET,
+    gap: 16,
   },
   offlineNotice: {
     borderWidth: 1,
@@ -478,14 +475,14 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 16,
-    right: 16,
+    bottom: 90, // Above nav
+    left: 16, // Moved to left to avoid AI FAB
     width: 60,
     height: 60,
-    borderRadius: 30,
+    borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 6,
+    ...shadows.lg,
   },
   empty: {
     alignItems: 'center',

@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { PERSON_TYPES, PersonTypeId } from '../data/personTypes';
@@ -36,21 +36,14 @@ export function PersonTypeScreen({ onComplete }: Props) {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 16, backgroundColor: colors.surface }]}>
-      <View style={styles.hero}>
-        <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
-          <MaterialIcons name="accessible-forward" size={40} color={colors.onPrimary} />
-        </View>
-        <Text style={[styles.title, { fontFamily: fontBold, color: colors.primaryContainer }]}>
-          Ruta Libre
-        </Text>
+      <Animated.View entering={reduceMotion ? undefined : FadeInDown.duration(400)} style={styles.hero}>
         <Text style={[styles.headline, { fontFamily: fontBold, color: colors.primary }]}>
-          ¿Cómo te movemos por Tijuana?
+          ¿Cuál es tu discapacidad o perfil de movilidad?
         </Text>
         <Text style={[styles.subtitle, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
-          Elige tu perfil de movilidad para personalizar rutas, alertas y reportes
-          comunitarios.
+          Personalizamos mapa, alertas, reportes y asistente de voz según tu necesidad.
         </Text>
-      </View>
+      </Animated.View>
 
       <ScrollView
         contentContainerStyle={styles.grid}
@@ -200,11 +193,11 @@ const styles = StyleSheet.create({
   },
   option: {
     borderWidth: 2,
-    borderRadius: radii.lg,
-    padding: 16,
-    minHeight: 152,
+    borderRadius: radii.xl,
+    padding: 20,
+    minHeight: 164,
     position: 'relative',
-    ...shadows.sm,
+    ...shadows.md,
   },
   iconBox: {
     width: 48,
@@ -243,8 +236,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     minHeight: spacing.touchMin,
-    borderRadius: radii.lg,
-    ...shadows.sm,
+    borderRadius: radii.pill,
+    ...shadows.md,
   },
   continueBtnDisabled: {
     opacity: 0.45,

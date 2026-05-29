@@ -34,11 +34,14 @@ export const hackathonColors = {
   safeGreen: '#60ff99',
   talkBackBlue: '#00dddd',
   background: '#12121f',
-  /** Tokens extra Stitch */
+  /** Tokens extra Stitch & Hackfox */
   strokeSoft: '#2a2a40',
   pixelAccent: '#00fbfb',
   magenta: '#ff4a8e',
   neonGreen: '#60ff99',
+  neonYellow: '#ffdd00',
+  glitchMagenta: '#ff0080',
+  scanlineOpacity: 0.15,
 } as const;
 
 export const hackathonGlass = {

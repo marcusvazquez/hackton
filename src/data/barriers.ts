@@ -6,13 +6,14 @@ export type BarrierType = {
   accent: string;
 };
 
+/** Acentos neón alineados con hackathonColors (modo hackathon). */
 export const BARRIER_TYPES: BarrierType[] = [
-  { id: 'acera', label: 'Acera rota', icon: 'construction', accent: '#c2410c' },
-  { id: 'rampa', label: 'Rampa cerrada', icon: 'block', accent: '#b45309' },
-  { id: 'banqueta', label: 'Banqueta obstruida', icon: 'report-problem', accent: '#dc2626' },
-  { id: 'senal', label: 'Señalización', icon: 'traffic', accent: '#ca8a04' },
-  { id: 'elevador', label: 'Elevador fuera', icon: 'elevator', accent: '#0369a1' },
-  { id: 'pendiente', label: 'Pendiente pronunciada', icon: 'terrain', accent: '#15803d' },
-  { id: 'vehiculo', label: 'Vehículo estacionado', icon: 'directions-car', accent: '#4338ca' },
-  { id: 'otro', label: 'Otro', icon: 'more-horiz', accent: '#475569' },
+  { id: 'acera', label: 'Acera rota', icon: 'construction', accent: '#ff8866' },
+  { id: 'rampa', label: 'Rampa cerrada', icon: 'block', accent: '#ffdd00' },
+  { id: 'banqueta', label: 'Banqueta obstruida', icon: 'report-problem', accent: '#ff4466' },
+  { id: 'senal', label: 'Señalización', icon: 'traffic', accent: '#ffdd00' },
+  { id: 'elevador', label: 'Elevador fuera', icon: 'elevator', accent: '#00fbfb' },
+  { id: 'pendiente', label: 'Pendiente pronunciada', icon: 'terrain', accent: '#60ff99' },
+  { id: 'vehiculo', label: 'Vehículo estacionado', icon: 'directions-car', accent: '#ff4a8e' },
+  { id: 'otro', label: 'Otro', icon: 'more-horiz', accent: '#00dddd' },
 ];

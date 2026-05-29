@@ -79,13 +79,13 @@ export function personTypeToDisabilityProfile(
   personType: PersonTypeId | null,
 ): DisabilityProfile {
   switch (personType) {
-    case 'wheelchair':
+    case 'motriz':
       return 'silla_ruedas';
     case 'visual':
       return 'discapacidad_visual';
-    case 'hearing':
+    case 'auditiva':
       return 'discapacidad_auditiva';
-    case 'reduced-mobility':
+    case 'cognitiva':
       return 'movilidad_reducida';
     default:
       return 'silla_ruedas';
