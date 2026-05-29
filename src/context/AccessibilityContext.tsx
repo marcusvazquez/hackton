@@ -13,6 +13,8 @@ import { speakTalkBack, stopTalkBackSpeech } from '../utils/talkBackTts';
 
 export type PersonType = 'visual' | 'motriz' | 'auditiva' | 'cognitiva' | null;
 
+const HYDRATE_TIMEOUT_MS = 8000;
+
 const STORAGE_KEYS = {
   personType: '@ruta_libre/person_type',
   onboardingDone: '@ruta_libre/onboarding_done',
@@ -53,6 +55,8 @@ type AccessibilityContextValue = {
   hasCompletedOnboarding: boolean;
   completeOnboarding: () => void;
   resetOnboarding: () => void;
+  /** Vuelve a la pantalla de discapacidad sin repetir la bienvenida. */
+  resetPersonTypeSelection: () => void;
   isHydrated: boolean;
   hackathonMode: boolean;
   setHackathonMode: (value: boolean) => void;
@@ -104,14 +108,30 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
 
     const hydrate = async () => {
       try {
-        const [storedType, storedDone, storedWelcome, storedHackathon, storedTalkBack] =
-          await Promise.all([
+        const storageReads = Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.personType),
           AsyncStorage.getItem(STORAGE_KEYS.onboardingDone),
           AsyncStorage.getItem(STORAGE_KEYS.welcomeDone),
           AsyncStorage.getItem(STORAGE_KEYS.hackathonMode),
           AsyncStorage.getItem(STORAGE_KEYS.talkBack),
         ]);
+
+        const timedOut = await Promise.race([
+          storageReads.then(() => false),
+          new Promise<boolean>((resolve) => {
+            setTimeout(() => resolve(true), HYDRATE_TIMEOUT_MS);
+          }),
+        ]);
+
+        if (timedOut) {
+          console.warn(
+            '[AccessibilityContext] AsyncStorage tardó demasiado; continuando con valores por defecto.',
+          );
+          return;
+        }
+
+        const [storedType, storedDone, storedWelcome, storedHackathon, storedTalkBack] =
+          await storageReads;
         if (!mounted) return;
 
         const normalizedType = normalizeStoredPersonType(storedType);
@@ -120,7 +140,13 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
         }
 
         setHasSeenWelcome(storedWelcome === 'true');
-        setHasCompletedOnboarding(storedDone === 'true');
+
+        const onboardingComplete = storedDone === 'true' && normalizedType != null;
+        setHasCompletedOnboarding(onboardingComplete);
+        if (storedDone === 'true' && !normalizedType) {
+          void AsyncStorage.setItem(STORAGE_KEYS.onboardingDone, 'false');
+        }
+
         setHackathonModeState(storedHackathon === 'true');
 
         if (normalizedType === 'visual') {
@@ -286,6 +312,12 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     ]);
   }, []);
 
+  const resetPersonTypeSelection = useCallback(() => {
+    setHasCompletedOnboarding(false);
+    setPersonTypeState(null);
+    void AsyncStorage.multiRemove([STORAGE_KEYS.onboardingDone, STORAGE_KEYS.personType]);
+  }, []);
+
   const value = useMemo(
     () => ({
       talkBackEnabled,
@@ -302,6 +334,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       hasCompletedOnboarding,
       completeOnboarding,
       resetOnboarding,
+      resetPersonTypeSelection,
       isHydrated,
       hackathonMode,
       setHackathonMode,
@@ -321,6 +354,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       hasCompletedOnboarding,
       completeOnboarding,
       resetOnboarding,
+      resetPersonTypeSelection,
       isHydrated,
       hackathonMode,
       setHackathonMode,

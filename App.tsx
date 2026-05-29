@@ -7,7 +7,6 @@ import {
 } from '@expo-google-fonts/atkinson-hyperlegible';
 import { PressStart2P_400Regular } from '@expo-google-fonts/press-start-2p';
 import { VT323_400Regular } from '@expo-google-fonts/vt323';
-import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -25,15 +24,14 @@ import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { colors as defaultColors } from './src/theme/colors';
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     AtkinsonHyperlegible_400Regular,
     AtkinsonHyperlegible_700Bold,
     PressStart2P_400Regular,
     VT323_400Regular,
-    ...MaterialIcons.font,
   });
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded && !fontError) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={defaultColors.primary} size="large" />
@@ -72,11 +70,13 @@ function RootNavigator() {
     );
   }
 
+  const needsPersonType = !personType || !hasCompletedOnboarding;
+
   return (
     <ExploreByTouchLayer enabled={personType === 'visual'}>
       {!hasSeenWelcome ? (
         <WelcomeScreen onContinue={() => undefined} />
-      ) : !hasCompletedOnboarding ? (
+      ) : needsPersonType ? (
         <PersonTypeScreen onComplete={() => undefined} />
       ) : (
         <AppShell />

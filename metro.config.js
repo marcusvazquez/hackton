@@ -13,6 +13,8 @@ config.resolver.blockList = [
   new RegExp(`${projectRoot}/_hackathon_import/.*`),
   new RegExp(`${projectRoot}/\\.expo-tmp-export[^/]*/.*`),
   new RegExp(`${projectRoot}/dist/.*`),
+  // Binarios opcionales de @expo/ngrok (otras plataformas) — Metro no debe vigilarlos en Windows.
+  /node_modules[/\\]@expo[/\\]ngrok-bin-[^/\\]+[/\\].*/,
 ];
 
 module.exports = config;

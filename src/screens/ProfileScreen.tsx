@@ -29,7 +29,7 @@ export function ProfileScreen({ onBack }: Props) {
     systemReduceMotion,
     personType,
     setPersonType,
-    resetOnboarding,
+    resetPersonTypeSelection,
     hackathonMode,
     setHackathonMode,
   } = useAccessibility();
@@ -202,7 +202,7 @@ export function ProfileScreen({ onBack }: Props) {
           </View>
           <Pressable
             accessibilityLabel="Cambiar perfil de movilidad"
-            onPress={resetOnboarding}
+            onPress={resetPersonTypeSelection}
             style={styles.changeBtn}
           >
             <Text
