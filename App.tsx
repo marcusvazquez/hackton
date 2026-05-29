@@ -13,6 +13,7 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ReduceMotionStyles } from './src/components/ReduceMotionStyles';
 import { AccessibilityProvider, useAccessibility } from './src/context/AccessibilityContext';
 import { MapLocationProvider } from './src/context/MapLocationContext';
+import { MapRoutingProvider } from './src/context/MapRoutingContext';
 import { OfflineProvider } from './src/context/OfflineContext';
 import { AppShell } from './src/navigation/AppShell';
 import { PersonTypeScreen } from './src/screens/PersonTypeScreen';
@@ -39,8 +40,10 @@ export default function App() {
           <AccessibilityProvider>
             <OfflineProvider>
               <MapLocationProvider>
-                <ReduceMotionStyles />
-                <RootNavigator />
+                <MapRoutingProvider>
+                  <ReduceMotionStyles />
+                  <RootNavigator />
+                </MapRoutingProvider>
               </MapLocationProvider>
             </OfflineProvider>
           </AccessibilityProvider>

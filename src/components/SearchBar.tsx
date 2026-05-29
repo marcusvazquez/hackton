@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useMapLocation } from '../context/MapLocationContext';
+import { useMapRouting } from '../context/MapRoutingContext';
 import { SEARCH_SUGGESTIONS } from '../data/markers';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { spacing } from '../theme/colors';
@@ -26,6 +27,7 @@ export function SearchBar() {
   const { reduceMotion } = useAccessibility();
   const { colors, glass, fontRegular } = useAppTheme();
   const { geocodeAndFly, locateUser, locationLoading } = useMapLocation();
+  const { calculateRouteTo, isCalculating } = useMapRouting();
   const [focused, setFocused] = useState(false);
   const [query, setQuery] = useState('');
   const borderProgress = useSharedValue(0);
@@ -73,7 +75,7 @@ export function SearchBar() {
   const handleSelectSuggestion = async (item: string) => {
     setQuery(item);
     setFocused(false);
-    await geocodeAndFly(item);
+    await Promise.all([geocodeAndFly(item), calculateRouteTo(item)]);
   };
 
   const handleLocatePress = async () => {
@@ -86,7 +88,8 @@ export function SearchBar() {
 
   const handleSearchSubmit = async () => {
     if (!query.trim()) return;
-    await geocodeAndFly(query.trim());
+    const trimmed = query.trim();
+    await Promise.all([geocodeAndFly(trimmed), calculateRouteTo(trimmed)]);
     setFocused(false);
   };
 
@@ -102,7 +105,7 @@ export function SearchBar() {
         <Pressable
           accessibilityLabel="Centrar mapa en mi ubicación"
           accessibilityRole="button"
-          disabled={locationLoading}
+          disabled={locationLoading || isCalculating}
           onPress={handleLocatePress}
           style={styles.leadingIcon}
         >

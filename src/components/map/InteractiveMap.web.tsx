@@ -7,6 +7,7 @@ import {
   TIJUANA_CENTER,
 } from '../../constants/map';
 import { useMapLocation } from '../../context/MapLocationContext';
+import { useMapRouting } from '../../context/MapRoutingContext';
 import { MAP_INCIDENTS } from '../../data/mapIncidents';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { createIncidentIcon, createUserLocationIcon } from './mapLeafletIcons';
@@ -88,7 +89,9 @@ export function InteractiveMap() {
   const mapRef = useRef<import('leaflet').Map | null>(null);
   const incidentMarkersRef = useRef<import('leaflet').Marker[]>([]);
   const userMarkerRef = useRef<import('leaflet').Marker | null>(null);
+  const routeLayersRef = useRef<import('leaflet').Layer[]>([]);
   const { userLocation, flyTarget } = useMapLocation();
+  const { routeResult, destination } = useMapRouting();
   const { colors, fontRegular } = useAppTheme();
   const [mapError, setMapError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -147,6 +150,8 @@ export function InteractiveMap() {
       clearTimeout(timer);
       incidentMarkersRef.current.forEach((m) => m.remove());
       incidentMarkersRef.current = [];
+      routeLayersRef.current.forEach((l) => l.remove());
+      routeLayersRef.current = [];
       userMarkerRef.current?.remove();
       userMarkerRef.current = null;
       mapRef.current?.remove();
@@ -185,6 +190,70 @@ export function InteractiveMap() {
       }
     })();
   }, [userLocation, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || typeof window === 'undefined') return;
+
+    void (async () => {
+      const L = (await import('leaflet')).default;
+
+      routeLayersRef.current.forEach((layer) => layer.remove());
+      routeLayersRef.current = [];
+
+      if (routeResult) {
+        for (const zone of routeResult.activeHazardZones) {
+          const polygon = L.polygon(
+            zone.polygon.map((p) => [p.lat, p.lng] as [number, number]),
+            {
+              color: zone.type === 'flood' ? '#0369a1' : '#f97316',
+              fillColor: zone.type === 'flood' ? '#0369a1' : '#f97316',
+              fillOpacity: 0.2,
+              weight: 2,
+            },
+          ).addTo(map);
+          routeLayersRef.current.push(polygon);
+        }
+
+        const altLine = L.polyline(
+          routeResult.alternative.coordinates.map((c) => [c.lat, c.lng] as [number, number]),
+          { color: colors.onSurfaceVariant, weight: 4, dashArray: '12 10', opacity: 0.9 },
+        ).addTo(map);
+        routeLayersRef.current.push(altLine);
+
+        const primaryLine = L.polyline(
+          routeResult.primary.coordinates.map((c) => [c.lat, c.lng] as [number, number]),
+          { color: colors.primary, weight: 5, opacity: 1 },
+        ).addTo(map);
+        routeLayersRef.current.push(primaryLine);
+
+        for (const marker of routeResult.criticalMarkers) {
+          const iconHtml =
+            marker.icon === 'accessible'
+              ? `<div style="background:#16a34a;width:28px;height:28px;border-radius:14px;border:2px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;">♿</div>`
+              : marker.icon === 'warning'
+                ? `<div style="background:#f88400;width:28px;height:28px;border-radius:14px;border:2px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;">!</div>`
+                : `<div style="background:#f97316;width:28px;height:28px;border-radius:14px;border:2px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;">⚡</div>`;
+          const m = L.marker([marker.lat, marker.lng], {
+            icon: L.divIcon({ html: iconHtml, className: '', iconSize: [28, 28], iconAnchor: [14, 14] }),
+          })
+            .bindPopup(`<b>${marker.title}</b><br/>${marker.description}`)
+            .addTo(map);
+          routeLayersRef.current.push(m);
+        }
+
+        const bounds = primaryLine.getBounds();
+        map.fitBounds(bounds, { padding: [120, 48] });
+      }
+
+      if (destination) {
+        const destMarker = L.marker([destination.lat, destination.lng])
+          .bindPopup('<b>Destino</b>')
+          .addTo(map);
+        routeLayersRef.current.push(destMarker);
+      }
+    })();
+  }, [routeResult, destination, mapReady, colors]);
 
   if (mapError) {
     return (
