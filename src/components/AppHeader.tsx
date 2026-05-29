@@ -3,8 +3,9 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { colors, spacing } from '../theme/colors';
-import { glass, radii, shadows } from '../theme/shadows';
+import { useAppTheme } from '../hooks/useAppTheme';
+import { spacing } from '../theme/colors';
+import { radii, shadows } from '../theme/shadows';
 
 type Props = {
   onMenuPress: () => void;
@@ -14,6 +15,7 @@ type Props = {
 export function AppHeader({ onMenuPress, onSearchPress }: Props) {
   const insets = useSafeAreaInsets();
   const { talkBackEnabled } = useAccessibility();
+  const { colors, glass, fontBold, isHackathon } = useAppTheme();
 
   return (
     <View style={[styles.headerWrap, { paddingTop: insets.top + 6 }]}>
@@ -21,6 +23,7 @@ export function AppHeader({ onMenuPress, onSearchPress }: Props) {
         style={[
           styles.header,
           shadows.sm,
+          isHackathon && styles.headerHackathon,
           {
             backgroundColor: talkBackEnabled ? '#000000' : glass.light,
             borderColor: talkBackEnabled ? '#ffffff33' : glass.border,
@@ -38,7 +41,12 @@ export function AppHeader({ onMenuPress, onSearchPress }: Props) {
           color={talkBackEnabled ? '#ffffff' : colors.primary}
         />
       </Pressable>
-      <Text style={[styles.title, talkBackEnabled && styles.titleTalkBack]}>
+      <Text
+        style={[
+          styles.title,
+          { fontFamily: fontBold, color: talkBackEnabled ? '#ffffff' : colors.onSurface },
+        ]}
+      >
         Ruta Libre
       </Text>
       <Pressable
@@ -79,12 +87,13 @@ const styles = StyleSheet.create({
     marginHorizontal: -8,
   },
   title: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
     fontSize: 24,
-    color: colors.primary,
     letterSpacing: -0.3,
   },
-  titleTalkBack: {
-    color: '#ffffff',
+  headerHackathon: {
+    shadowColor: '#00e5ff',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
 });

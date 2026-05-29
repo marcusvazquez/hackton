@@ -9,8 +9,9 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useAnimations } from '../hooks/useAnimations';
-import { colors, spacing } from '../theme/colors';
-import { glass, radii, shadows } from '../theme/shadows';
+import { useAppTheme } from '../hooks/useAppTheme';
+import { spacing } from '../theme/colors';
+import { radii, shadows } from '../theme/shadows';
 import { TAB_LABELS, TAB_ORDER, TabId } from '../types/navigation';
 
 type Props = {
@@ -31,10 +32,16 @@ function TabButton({
   tab,
   isActive,
   onPress,
+  activeColor,
+  inactiveColor,
+  fontBold,
 }: {
   tab: TabId;
   isActive: boolean;
   onPress: () => void;
+  activeColor: string;
+  inactiveColor: string;
+  fontBold: string;
 }) {
   const { reduceMotion } = useAccessibility();
   const { navEase } = useAnimations();
@@ -82,13 +89,13 @@ function TabButton({
         <MaterialIcons
           name={icons[tab]}
           size={24}
-          color={isActive ? colors.primary : colors.onSurfaceVariant}
+          color={isActive ? activeColor : inactiveColor}
         />
       </Animated.View>
       <Animated.Text
         style={[
           styles.tabLabel,
-          { color: isActive ? colors.primary : colors.onSurfaceVariant },
+          { fontFamily: fontBold, color: isActive ? activeColor : inactiveColor },
           labelStyle,
         ]}
       >
@@ -101,6 +108,7 @@ function TabButton({
 export function BottomNav({ activeTab, onTabChange }: Props) {
   const insets = useSafeAreaInsets();
   const { reduceMotion } = useAccessibility();
+  const { colors, glass, isHackathon, fontBold } = useAppTheme();
   const { navEase } = useAnimations();
   const activeIndex = TAB_ORDER.indexOf(activeTab);
   const indicatorX = useSharedValue(activeIndex * TAB_WIDTH);
@@ -117,9 +125,18 @@ export function BottomNav({ activeTab, onTabChange }: Props) {
 
   return (
     <View style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      <View style={[styles.container, shadows.nav]}>
+      <View
+        style={[
+          styles.container,
+          shadows.nav,
+          isHackathon && styles.containerHackathon,
+          { backgroundColor: glass.light, borderColor: glass.border },
+        ]}
+      >
         <View style={styles.indicatorTrack}>
-          <Animated.View style={[styles.indicator, indicatorStyle]} />
+          <Animated.View
+            style={[styles.indicator, { backgroundColor: colors.primary }, indicatorStyle]}
+          />
         </View>
         <View style={styles.tabsRow}>
           {TAB_ORDER.map((tab) => (
@@ -128,6 +145,9 @@ export function BottomNav({ activeTab, onTabChange }: Props) {
               tab={tab}
               isActive={activeTab === tab}
               onPress={() => onTabChange(tab)}
+              activeColor={colors.primary}
+              inactiveColor={colors.onSurfaceVariant}
+              fontBold={fontBold}
             />
           ))}
         </View>
@@ -143,12 +163,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   container: {
-    backgroundColor: glass.light,
     borderWidth: 1,
-    borderColor: glass.border,
     borderRadius: radii.xl,
     paddingTop: 10,
     overflow: 'hidden',
+  },
+  containerHackathon: {
+    shadowColor: '#00e5ff',
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
   },
   indicatorTrack: {
     position: 'absolute',
@@ -160,7 +184,6 @@ const styles = StyleSheet.create({
   indicator: {
     width: TAB_WIDTH,
     height: 3,
-    backgroundColor: colors.primary,
     borderRadius: 2,
   },
   tabsRow: {
@@ -176,7 +199,6 @@ const styles = StyleSheet.create({
     minHeight: spacing.touchMin,
   },
   tabLabel: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
     fontSize: 12,
     letterSpacing: 0.5,
     marginTop: 2,

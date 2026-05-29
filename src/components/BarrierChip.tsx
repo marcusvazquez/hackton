@@ -10,8 +10,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useAnimations } from '../hooks/useAnimations';
+import { useAppTheme } from '../hooks/useAppTheme';
 import { BarrierType } from '../data/barriers';
-import { colors } from '../theme/colors';
 import { radii, shadows } from '../theme/shadows';
 
 type Props = {
@@ -23,6 +23,7 @@ type Props = {
 
 export function BarrierChip({ barrier, index, selected, onSelect }: Props) {
   const { reduceMotion, talkBackEnabled } = useAccessibility();
+  const { colors, fontBold } = useAppTheme();
   const { chipEnter } = useAnimations();
   const scale = useSharedValue(1);
   const checkScale = useSharedValue(selected ? 1 : 0);
@@ -72,9 +73,19 @@ export function BarrierChip({ barrier, index, selected, onSelect }: Props) {
         onPress={handlePress}
         style={[
           styles.chip,
-          talkBackEnabled && styles.chipTalkBack,
-          selected && styles.chipSelected,
-          selected && talkBackEnabled && styles.chipSelectedTalkBack,
+          talkBackEnabled
+            ? styles.chipTalkBack
+            : {
+                borderColor: colors.outlineVariant,
+                backgroundColor: colors.surfaceContainerLowest,
+              },
+          selected &&
+            (talkBackEnabled
+              ? styles.chipSelectedTalkBack
+              : {
+                  borderColor: colors.primary,
+                  backgroundColor: colors.selectedSurface,
+                }),
         ]}
       >
         <View style={[styles.iconBox, { backgroundColor: iconBg, borderLeftColor: barrier.accent }]}>
@@ -87,8 +98,10 @@ export function BarrierChip({ barrier, index, selected, onSelect }: Props) {
         <Text
           style={[
             styles.label,
+            { fontFamily: fontBold },
             talkBackEnabled && styles.labelTalkBack,
-            selected && styles.labelSelected,
+            !talkBackEnabled && { color: colors.onSurface },
+            selected && !talkBackEnabled && { color: colors.primary },
             selected && talkBackEnabled && styles.labelSelectedTalkBack,
           ]}
         >
@@ -97,7 +110,7 @@ export function BarrierChip({ barrier, index, selected, onSelect }: Props) {
         {selected && (
           <Animated.View
             entering={reduceMotion ? undefined : ZoomIn.duration(180)}
-            style={[styles.check, checkStyle]}
+            style={[styles.check, { backgroundColor: colors.primary }, checkStyle]}
           >
             <MaterialIcons name="check" size={14} color={colors.onPrimary} />
           </Animated.View>
@@ -115,8 +128,6 @@ const styles = StyleSheet.create({
     minHeight: 112,
     borderRadius: radii.lg,
     borderWidth: 2,
-    borderColor: colors.outlineVariant,
-    backgroundColor: colors.surfaceContainerLowest,
     alignItems: 'flex-start',
     justifyContent: 'center',
     padding: 14,
@@ -128,12 +139,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a',
     borderColor: '#444444',
   },
-  chipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.selectedSurface,
-  },
   chipSelectedTalkBack: {
-    borderColor: colors.talkBackBlue,
+    borderColor: '#93c5fd',
     backgroundColor: '#0d1f3d',
   },
   iconBox: {
@@ -145,16 +152,11 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
   },
   label: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
     fontSize: 14,
     lineHeight: 20,
-    color: colors.onSurface,
   },
   labelTalkBack: {
     color: '#ffffff',
-  },
-  labelSelected: {
-    color: colors.primary,
   },
   labelSelectedTalkBack: {
     color: '#93c5fd',
@@ -166,7 +168,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 999,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },

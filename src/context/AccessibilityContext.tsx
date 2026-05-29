@@ -13,6 +13,7 @@ import { PersonTypeId } from '../data/personTypes';
 const STORAGE_KEYS = {
   personType: '@ruta_libre/person_type',
   onboardingDone: '@ruta_libre/onboarding_done',
+  hackathonMode: '@ruta_libre/hackathon_mode',
 } as const;
 
 type AccessibilityContextValue = {
@@ -26,6 +27,8 @@ type AccessibilityContextValue = {
   completeOnboarding: () => void;
   resetOnboarding: () => void;
   isHydrated: boolean;
+  hackathonMode: boolean;
+  setHackathonMode: (value: boolean) => void;
 };
 
 const AccessibilityContext = createContext<AccessibilityContextValue | null>(null);
@@ -42,6 +45,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   const [systemReduceMotion, setSystemReduceMotion] = useState(false);
   const [personType, setPersonTypeState] = useState<PersonTypeId | null>(null);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [hackathonMode, setHackathonModeState] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
@@ -49,15 +53,17 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
 
     const hydrate = async () => {
       try {
-        const [storedType, storedDone] = await Promise.all([
+        const [storedType, storedDone, storedHackathon] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.personType),
           AsyncStorage.getItem(STORAGE_KEYS.onboardingDone),
+          AsyncStorage.getItem(STORAGE_KEYS.hackathonMode),
         ]);
         if (!mounted) return;
         if (storedType) {
           setPersonTypeState(storedType as PersonTypeId);
         }
         setHasCompletedOnboarding(storedDone === 'true');
+        setHackathonModeState(storedHackathon === 'true');
       } finally {
         if (mounted) {
           setIsHydrated(true);
@@ -114,8 +120,14 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       document.body.classList.toggle('reduce-motion', talkBackEnabled);
+      document.body.classList.toggle('hackathon-mode', hackathonMode && !talkBackEnabled);
     }
-  }, [talkBackEnabled]);
+  }, [talkBackEnabled, hackathonMode]);
+
+  const setHackathonMode = useCallback((value: boolean) => {
+    setHackathonModeState(value);
+    void AsyncStorage.setItem(STORAGE_KEYS.hackathonMode, value ? 'true' : 'false');
+  }, []);
 
   const reduceMotion = systemReduceMotion || talkBackEnabled;
 
@@ -157,6 +169,8 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       completeOnboarding,
       resetOnboarding,
       isHydrated,
+      hackathonMode,
+      setHackathonMode,
     }),
     [
       talkBackEnabled,
@@ -168,6 +182,8 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       completeOnboarding,
       resetOnboarding,
       isHydrated,
+      hackathonMode,
+      setHackathonMode,
     ],
   );
 

@@ -1,111 +1,166 @@
+import React, { useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useAccessibility } from '../context/AccessibilityContext';
-import { colors, spacing } from '../theme/colors';
-import { SCROLL_BOTTOM_INSET } from '../theme/layout';
-import { radii, shadows } from '../theme/shadows';
+import { Pressable } from 'react-native';
+import { RouteOptionCard } from '../components/RouteOptionCard';
+import { SectionHeader } from '../components/SectionHeader';
+import { ROUTE_OPTIONS } from '../data/routes';
+import { useAppTheme } from '../hooks/useAppTheme';
+import { spacing } from '../theme/colors';
+import { radii } from '../theme/shadows';
 
-export function PlanearScreen() {
-  const { talkBackEnabled } = useAccessibility();
+type Props = {
+  onOpenDetail?: () => void;
+};
+
+export function PlanearScreen({ onOpenDetail }: Props) {
+  const { colors, fontBold, fontRegular, isHackathon } = useAppTheme();
+  const [origin, setOrigin] = useState('Mi ubicación');
+  const [destination, setDestination] = useState('');
+  const [step, setStep] = useState<'search' | 'results'>('search');
+  const [selectedId, setSelectedId] = useState('accessible');
+
+  const handleSearch = () => {
+    if (destination.trim().length > 0) setStep('results');
+  };
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.content,
-        talkBackEnabled && styles.contentTalkBack,
-      ]}
-      style={[styles.container, talkBackEnabled && styles.containerTalkBack]}
+    <KeyboardAvoidingView
+      style={[styles.flex, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <MaterialIcons
-        name="directions-walk"
-        size={64}
-        color={talkBackEnabled ? '#ffffff' : colors.primary}
-      />
-      <Text style={[styles.title, talkBackEnabled && styles.textTalkBack]}>
-        Planear ruta
-      </Text>
-      <Text style={[styles.subtitle, talkBackEnabled && styles.subtitleTalkBack]}>
-        Próximamente podrás trazar rutas accesibles según tus necesidades de
-        movilidad, evitando barreras reportadas por la comunidad.
-      </Text>
-      <View style={[styles.card, talkBackEnabled && styles.cardTalkBack]}>
-        <Text style={[styles.cardTitle, talkBackEnabled && styles.textTalkBack]}>
-          Sugerencia rápida
-        </Text>
-        <Text style={[styles.cardBody, talkBackEnabled && styles.subtitleTalkBack]}>
-          Centro → Zona Río (ruta segura, 2.4 km, sin escalones)
-        </Text>
-      </View>
-    </ScrollView>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <SectionHeader
+          title={step === 'search' ? 'Planear ruta' : 'Selección de ruta'}
+          subtitle={
+            step === 'search'
+              ? 'Destino accesible en Tijuana'
+              : `${origin} → ${destination || 'Destino'}`
+          }
+        />
+
+        {step === 'search' ? (
+          <>
+            <View style={[styles.field, { borderColor: colors.outlineVariant, backgroundColor: colors.surfaceContainerLow }]}>
+              <MaterialIcons name="my-location" size={22} color={colors.primary} />
+              <TextInput
+                value={origin}
+                onChangeText={setOrigin}
+                style={[styles.input, { fontFamily: fontRegular, color: colors.onSurface }]}
+                placeholderTextColor={colors.onSurfaceVariant}
+              />
+            </View>
+            <View style={[styles.field, { borderColor: colors.outlineVariant, backgroundColor: colors.surfaceContainerLow }]}>
+              <MaterialIcons name="place" size={22} color={colors.secondary} />
+              <TextInput
+                value={destination}
+                onChangeText={setDestination}
+                placeholder="¿A dónde vas?"
+                style={[styles.input, { fontFamily: fontRegular, color: colors.onSurface }]}
+                placeholderTextColor={colors.onSurfaceVariant}
+                onSubmitEditing={handleSearch}
+              />
+            </View>
+
+            <Pressable
+              onPress={handleSearch}
+              disabled={!destination.trim()}
+              style={[
+                styles.searchBtn,
+                {
+                  backgroundColor: destination.trim() ? colors.primary : colors.surfaceContainerHigh,
+                  opacity: destination.trim() ? 1 : 0.6,
+                },
+              ]}
+            >
+              <MaterialIcons name="directions" size={22} color={colors.onPrimary} />
+              <Text style={[styles.searchBtnText, { fontFamily: fontBold, color: colors.onPrimary }]}>
+                Buscar rutas
+              </Text>
+            </Pressable>
+
+            {isHackathon ? (
+              <View style={[styles.hint, { borderColor: colors.outlineVariant }]}>
+                <Text style={[styles.hintText, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
+                  Modo cyber: compara ruta rápida vs. más accesible con puntuación en tiempo real.
+                </Text>
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <>
+            {ROUTE_OPTIONS.map((route) => (
+              <RouteOptionCard
+                key={route.id}
+                route={route}
+                selected={selectedId === route.id}
+                onSelect={() => setSelectedId(route.id)}
+                onChoose={() => onOpenDetail?.()}
+              />
+            ))}
+            <Pressable onPress={() => setStep('search')} style={styles.backLink}>
+              <MaterialIcons name="arrow-back" size={18} color={colors.primary} />
+              <Text style={[styles.backText, { fontFamily: fontRegular, color: colors.primary }]}>
+                Cambiar destino
+              </Text>
+            </Pressable>
+          </>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.surface,
+  flex: { flex: 1 },
+  scroll: {
+    padding: spacing.edge,
+    paddingBottom: 120,
   },
-  containerTalkBack: {
-    backgroundColor: '#000000',
+  field: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    marginBottom: 12,
+    minHeight: 52,
   },
-  content: {
-    flexGrow: 1,
+  input: { flex: 1, fontSize: 16, paddingVertical: 12 },
+  searchBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.edge,
-    paddingBottom: SCROLL_BOTTOM_INSET,
-    gap: 16,
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: radii.md,
+    marginTop: 8,
   },
-  contentTalkBack: {
+  searchBtnText: { fontSize: 16 },
+  hint: {
+    marginTop: spacing.gutter,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#ffffff33',
-    margin: 8,
-    borderRadius: 12,
+    borderRadius: radii.md,
+    borderStyle: 'dashed',
   },
-  title: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
-    fontSize: 32,
-    letterSpacing: -0.5,
-    color: colors.onSurface,
-    textAlign: 'center',
+  hintText: { fontSize: 13, lineHeight: 20 },
+  backLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingVertical: 8,
   },
-  subtitle: {
-    fontFamily: 'AtkinsonHyperlegible_400Regular',
-    fontSize: 16,
-    color: colors.onSurfaceVariant,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  textTalkBack: {
-    color: '#ffffff',
-  },
-  subtitleTalkBack: {
-    color: '#cccccc',
-  },
-  card: {
-    marginTop: 24,
-    width: '100%',
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    padding: spacing.gutter,
-    ...shadows.md,
-  },
-  cardTalkBack: {
-    backgroundColor: '#111111',
-    borderColor: '#ffffff44',
-  },
-  cardTitle: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
-    fontSize: 18,
-    color: colors.primary,
-    marginBottom: 8,
-  },
-  cardBody: {
-    fontFamily: 'AtkinsonHyperlegible_400Regular',
-    fontSize: 16,
-    color: colors.onSurfaceVariant,
-  },
+  backText: { fontSize: 15 },
 });

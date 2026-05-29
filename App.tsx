@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppHeader } from './src/components/AppHeader';
 import { BottomNav } from './src/components/BottomNav';
+import { HackathonBackdrop } from './src/components/HackathonBackdrop';
 import { ReduceMotionStyles } from './src/components/ReduceMotionStyles';
 import { ScreenTransition } from './src/components/ScreenTransition';
 import { AccessibilityProvider, useAccessibility } from './src/context/AccessibilityContext';
@@ -22,15 +23,24 @@ import { PersonTypeScreen } from './src/screens/PersonTypeScreen';
 import { PlanearScreen } from './src/screens/PlanearScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ReportScreen } from './src/screens/ReportScreen';
-import { colors } from './src/theme/colors';
+import { useAppTheme } from './src/hooks/useAppTheme';
+import { colors as defaultColors } from './src/theme/colors';
 import { TabId } from './src/types/navigation';
 
 type OverlayScreen = 'perfil' | 'detalle' | null;
 
 function AppShell() {
   const { talkBackEnabled } = useAccessibility();
+  const { colors, isHackathon } = useAppTheme();
   const [activeTab, setActiveTab] = useState<TabId>('mapa');
   const [overlay, setOverlay] = useState<OverlayScreen>(null);
+
+  const shellStyle = [
+    styles.root,
+    talkBackEnabled && styles.rootTalkBack,
+    !talkBackEnabled && { backgroundColor: colors.surface },
+  ];
+  const statusStyle = talkBackEnabled || isHackathon ? 'light' : 'dark';
 
   const handleReportSuccess = useCallback(() => {
     setActiveTab('mapa');
@@ -46,7 +56,7 @@ function AppShell() {
           />
         );
       case 'planear':
-        return <PlanearScreen />;
+        return <PlanearScreen onOpenDetail={() => setOverlay('detalle')} />;
       case 'reportar':
         return <ReportScreen onReportSuccess={handleReportSuccess} />;
       case 'comunidad':
@@ -58,8 +68,9 @@ function AppShell() {
 
   if (overlay === 'perfil') {
     return (
-      <View style={[styles.root, talkBackEnabled && styles.rootTalkBack]}>
-        <StatusBar style={talkBackEnabled ? 'light' : 'dark'} />
+      <View style={shellStyle}>
+        <HackathonBackdrop />
+        <StatusBar style={statusStyle} />
         <ProfileScreen onBack={() => setOverlay(null)} />
       </View>
     );
@@ -67,16 +78,18 @@ function AppShell() {
 
   if (overlay === 'detalle') {
     return (
-      <View style={[styles.root, talkBackEnabled && styles.rootTalkBack]}>
-        <StatusBar style={talkBackEnabled ? 'light' : 'dark'} />
+      <View style={shellStyle}>
+        <HackathonBackdrop />
+        <StatusBar style={statusStyle} />
         <DetailScreen onBack={() => setOverlay(null)} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.root, talkBackEnabled && styles.rootTalkBack]}>
-      <StatusBar style={talkBackEnabled ? 'light' : 'dark'} />
+    <View style={shellStyle}>
+      <HackathonBackdrop />
+      <StatusBar style={statusStyle} />
       <AppHeader
         onMenuPress={() => setOverlay('perfil')}
         onSearchPress={() => setActiveTab('mapa')}
@@ -102,7 +115,7 @@ export default function App() {
   if (!fontsLoaded) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={colors.primary} size="large" />
+        <ActivityIndicator color={defaultColors.primary} size="large" />
       </View>
     );
   }
@@ -125,7 +138,7 @@ function RootNavigator() {
   if (!isHydrated) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={colors.primary} size="large" />
+        <ActivityIndicator color={defaultColors.primary} size="large" />
       </View>
     );
   }
@@ -143,7 +156,7 @@ const styles = StyleSheet.create({
   },
   root: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: defaultColors.surface,
   },
   rootTalkBack: {
     backgroundColor: '#000000',
@@ -161,6 +174,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: defaultColors.surface,
   },
 });

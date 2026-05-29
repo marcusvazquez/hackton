@@ -10,8 +10,9 @@ import Animated, {
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useAnimations } from '../hooks/useAnimations';
 import { useInView } from '../hooks/useInView';
+import { useAppTheme } from '../hooks/useAppTheme';
 import { FeedItem } from '../data/community';
-import { colors, spacing } from '../theme/colors';
+import { spacing } from '../theme/colors';
 import { radii, shadows } from '../theme/shadows';
 
 type Props = {
@@ -19,7 +20,8 @@ type Props = {
 };
 
 export function FeedCard({ item }: Props) {
-  const { reduceMotion } = useAccessibility();
+  const { reduceMotion, talkBackEnabled } = useAccessibility();
+  const { colors, fontBold, fontRegular, isHackathon } = useAppTheme();
   const { feedEnter } = useAnimations();
   const { ref, inView } = useInView(0.15);
   const [count, setCount] = useState(item.confirmations);
@@ -80,7 +82,18 @@ export function FeedCard({ item }: Props) {
   return (
     <View ref={ref} collapsable={false} style={!visible ? styles.placeholder : undefined}>
       {visible ? (
-      <Animated.View entering={!reduceMotion ? feedEnter : undefined} style={styles.card}>
+      <Animated.View
+        entering={!reduceMotion ? feedEnter : undefined}
+        style={[
+          styles.card,
+          talkBackEnabled
+            ? styles.cardTalkBack
+            : {
+                backgroundColor: colors.surfaceContainerLowest,
+                borderColor: colors.outlineVariant,
+              },
+        ]}
+      >
         <View style={[styles.badge, { backgroundColor: isSafe ? colors.safeGreen : colors.secondaryContainer }]}>
           <MaterialIcons
             name={isSafe ? 'check-circle' : 'warning'}
@@ -89,21 +102,115 @@ export function FeedCard({ item }: Props) {
           />
         </View>
         <View style={styles.body}>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.description}>{item.description}</Text>
+          {(item.author || item.location) && !talkBackEnabled ? (
+            <View style={styles.metaRow}>
+              {item.author ? (
+                <Text style={[styles.author, { fontFamily: fontBold, color: colors.primary }]}>
+                  {item.author}
+                </Text>
+              ) : null}
+              {item.location ? (
+                <View style={styles.locRow}>
+                  <MaterialIcons name="place" size={12} color={colors.onSurfaceVariant} />
+                  <Text style={[styles.location, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
+                    {item.location}
+                  </Text>
+                </View>
+              ) : null}
+              {item.offline && isHackathon ? (
+                <View style={[styles.offlinePill, { borderColor: colors.secondary }]}>
+                  <Text style={[styles.offlinePillText, { fontFamily: fontBold, color: colors.secondary }]}>
+                    OFFLINE
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+          <Text
+            style={[
+              styles.title,
+              { fontFamily: fontBold },
+              talkBackEnabled ? styles.textTalkBack : { color: colors.onSurface },
+            ]}
+          >
+            {item.title}
+          </Text>
+          <Text
+            style={[
+              styles.description,
+              { fontFamily: fontRegular },
+              talkBackEnabled ? styles.subtitleTalkBack : { color: colors.onSurfaceVariant },
+            ]}
+          >
+            {item.description}
+          </Text>
+          {item.tags && item.tags.length > 0 && !talkBackEnabled ? (
+            <View style={styles.tags}>
+              {item.tags.map((tag) => (
+                <View key={tag} style={[styles.tag, { borderColor: colors.outlineVariant }]}>
+                  <Text style={[styles.tagText, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
+                    {tag}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
           <View style={styles.footer}>
-            <Text style={styles.time}>{item.timeAgo}</Text>
+            <Text
+              style={[
+                styles.time,
+                { fontFamily: fontRegular },
+                talkBackEnabled ? styles.subtitleTalkBack : { color: colors.outline },
+              ]}
+            >
+              {item.timeAgo}
+            </Text>
             <View style={styles.confirmRow}>
               <View style={styles.countWrap}>
-                <Animated.Text style={[styles.count, oldCountStyle]}>{count}</Animated.Text>
+                <Animated.Text
+                  style={[
+                    styles.count,
+                    { fontFamily: fontBold, color: colors.primary },
+                    oldCountStyle,
+                  ]}
+                >
+                  {count}
+                </Animated.Text>
                 {!reduceMotion && (
-                  <Animated.Text style={[styles.count, newCountStyle]}>{count + 1}</Animated.Text>
+                  <Animated.Text
+                    style={[
+                      styles.count,
+                      { fontFamily: fontBold, color: colors.primary },
+                      newCountStyle,
+                    ]}
+                  >
+                    {count + 1}
+                  </Animated.Text>
                 )}
               </View>
-              <Text style={styles.confirmLabel}> confirmaciones</Text>
+              <Text
+                style={[
+                  styles.confirmLabel,
+                  { fontFamily: fontRegular },
+                  talkBackEnabled ? styles.subtitleTalkBack : { color: colors.onSurfaceVariant },
+                ]}
+              >
+                {' '}
+                confirmaciones
+              </Text>
               <Animated.View style={btnStyle}>
-                <Pressable onPress={handleConfirm} style={styles.confirmBtn}>
-                  <Text style={styles.confirmText}>Confirmar</Text>
+                <Pressable
+                  onPress={handleConfirm}
+                  style={[styles.confirmBtn, { backgroundColor: colors.primaryContainer }]}
+                >
+                  <Text
+                    style={[
+                      styles.confirmText,
+                      { fontFamily: fontBold, color: colors.onPrimaryContainer },
+                    ]}
+                  >
+                    Confirmar
+                  </Text>
                 </Pressable>
               </Animated.View>
             </View>
@@ -123,13 +230,15 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     gap: 12,
-    backgroundColor: colors.surfaceContainerLowest,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
     padding: spacing.gutter,
     marginBottom: spacing.gutter,
     ...shadows.sm,
+  },
+  cardTalkBack: {
+    backgroundColor: '#111111',
+    borderColor: '#ffffff44',
   },
   badge: {
     width: 44,
@@ -141,24 +250,61 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
   },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  author: {
+    fontSize: 12,
+  },
+  locRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  location: {
+    fontSize: 12,
+  },
+  offlinePill: {
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  offlinePillText: {
+    fontSize: 9,
+    letterSpacing: 1,
+  },
+  tags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  tag: {
+    borderWidth: 1,
+    borderRadius: radii.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  tagText: {
+    fontSize: 11,
+  },
   title: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
     fontSize: 16,
-    color: colors.onSurface,
   },
   description: {
-    fontFamily: 'AtkinsonHyperlegible_400Regular',
     fontSize: 14,
-    color: colors.onSurfaceVariant,
     marginTop: 4,
   },
   footer: {
     marginTop: 12,
   },
   time: {
-    fontFamily: 'AtkinsonHyperlegible_400Regular',
     fontSize: 12,
-    color: colors.outline,
   },
   confirmRow: {
     flexDirection: 'row',
@@ -173,25 +319,24 @@ const styles = StyleSheet.create({
     minWidth: 16,
   },
   count: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
     fontSize: 14,
-    color: colors.primary,
   },
   confirmLabel: {
-    fontFamily: 'AtkinsonHyperlegible_400Regular',
     fontSize: 14,
-    color: colors.onSurfaceVariant,
     flex: 1,
   },
   confirmBtn: {
-    backgroundColor: colors.primaryContainer,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: radii.sm,
   },
   confirmText: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
     fontSize: 14,
-    color: colors.onPrimaryContainer,
+  },
+  textTalkBack: {
+    color: '#ffffff',
+  },
+  subtitleTalkBack: {
+    color: '#cccccc',
   },
 });

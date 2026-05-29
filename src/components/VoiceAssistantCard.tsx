@@ -11,12 +11,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { getVoiceHint } from '../data/personTypes';
-import { colors, spacing } from '../theme/colors';
+import { useAppTheme } from '../hooks/useAppTheme';
+import { spacing } from '../theme/colors';
 import { mapOverlay } from '../theme/layout';
-import { glass, radii, shadows } from '../theme/shadows';
+import { radii, shadows } from '../theme/shadows';
 
 export function VoiceAssistantCard() {
   const { reduceMotion, personType } = useAccessibility();
+  const { colors, glass, fontBold, fontRegular, isHackathon } = useAppTheme();
   const pingScale = useSharedValue(1);
   const pingOpacity = useSharedValue(0.2);
 
@@ -41,19 +43,42 @@ export function VoiceAssistantCard() {
 
   return (
     <Animated.View entering={entering} style={styles.wrapper}>
-      <View style={[styles.card, shadows.sm]}>
+      <View
+        style={[
+          styles.card,
+          shadows.sm,
+          isHackathon
+            ? {
+                backgroundColor: 'rgba(0, 229, 255, 0.08)',
+                borderColor: 'rgba(255, 0, 170, 0.35)',
+              }
+            : {
+                backgroundColor: 'rgba(0, 63, 135, 0.08)',
+                borderColor: 'rgba(0, 86, 179, 0.25)',
+              },
+        ]}
+      >
         <View style={styles.headerRow}>
           <View style={styles.micWrap}>
             {!reduceMotion && (
-              <Animated.View style={[styles.ping, pingStyle]} />
+              <Animated.View style={[styles.ping, { backgroundColor: colors.primary }, pingStyle]} />
             )}
             <MaterialIcons name="mic" size={24} color={colors.primary} />
           </View>
-          <Text style={styles.headerLabel}>Modo Asistente de Voz Activo</Text>
+          <Text style={[styles.headerLabel, { fontFamily: fontBold, color: colors.primary }]}>
+            Modo Asistente de Voz Activo
+          </Text>
         </View>
-        <View style={styles.messageBox}>
+        <View
+          style={[
+            styles.messageBox,
+            { backgroundColor: glass.light, borderColor: glass.border },
+          ]}
+        >
           <MaterialIcons name="volume-up" size={22} color={colors.onSurfaceVariant} />
-          <Text style={styles.message}>{getVoiceHint(personType)}</Text>
+          <Text style={[styles.message, { fontFamily: fontRegular, color: colors.onSurface }]}>
+            {getVoiceHint(personType)}
+          </Text>
         </View>
       </View>
     </Animated.View>
@@ -69,9 +94,7 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   card: {
-    backgroundColor: 'rgba(0, 63, 135, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 86, 179, 0.25)',
     borderRadius: radii.xl,
     padding: 16,
     gap: 10,
@@ -92,32 +115,25 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 999,
-    backgroundColor: colors.primary,
   },
   headerLabel: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
     fontSize: 14,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    color: colors.primary,
     flex: 1,
   },
   messageBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: glass.light,
     borderWidth: 1,
-    borderColor: glass.border,
     borderRadius: radii.md,
     padding: 12,
   },
   message: {
     flex: 1,
-    fontFamily: 'AtkinsonHyperlegible_400Regular',
     fontSize: 16,
     fontStyle: 'italic',
-    color: colors.onSurface,
     lineHeight: 22,
   },
 });

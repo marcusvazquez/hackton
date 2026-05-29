@@ -1,26 +1,68 @@
 import React from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { FeedCard } from '../components/FeedCard';
+import { SectionHeader } from '../components/SectionHeader';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { FEED_ITEMS } from '../data/community';
-import { colors, spacing } from '../theme/colors';
+import { useAppTheme } from '../hooks/useAppTheme';
+import { spacing } from '../theme/colors';
 import { SCROLL_BOTTOM_INSET } from '../theme/layout';
 import { radii } from '../theme/shadows';
 
 export function CommunityScreen() {
   const { talkBackEnabled } = useAccessibility();
+  const { colors, fontBold, fontRegular, isHackathon } = useAppTheme();
+  const offlineCount = FEED_ITEMS.filter((i) => i.offline).length;
 
   return (
     <ScrollView
       contentContainerStyle={styles.content}
-      style={[styles.container, talkBackEnabled && styles.containerTalkBack]}
+      style={[
+        styles.container,
+        talkBackEnabled ? styles.containerTalkBack : { backgroundColor: colors.background },
+      ]}
     >
-      <Text style={[styles.title, talkBackEnabled && styles.textTalkBack]}>
-        Comunidad
-      </Text>
-      <Text style={[styles.subtitle, talkBackEnabled && styles.subtitleTalkBack]}>
-        Reportes y confirmaciones de la comunidad en Tijuana.
-      </Text>
+      <View style={styles.headerRow}>
+        <SectionHeader
+          title="Reportes en vivo"
+          subtitle="Confirmaciones de la comunidad en Tijuana"
+        />
+        {isHackathon && offlineCount > 0 ? (
+          <View style={[styles.offlineBadge, { borderColor: colors.secondary, backgroundColor: colors.secondaryFixed }]}>
+            <Text style={[styles.offlineText, { fontFamily: fontBold, color: colors.secondary }]}>
+              SYS.OFFLINE
+            </Text>
+            <Text style={[styles.offlineSub, { fontFamily: fontRegular, color: colors.onSecondaryFixed }]}>
+              {offlineCount} en cola
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      {isHackathon ? (
+        <View style={[styles.statsRow, { borderColor: colors.outlineVariant }]}>
+          <View style={styles.stat}>
+            <MaterialIcons name="groups" size={20} color={colors.primary} />
+            <Text style={[styles.statValue, { fontFamily: fontBold, color: colors.onSurface }]}>
+              {FEED_ITEMS.length}
+            </Text>
+            <Text style={[styles.statLabel, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
+              activos
+            </Text>
+          </View>
+          <View style={[styles.statDivider, { backgroundColor: colors.outlineVariant }]} />
+          <View style={styles.stat}>
+            <MaterialIcons name="verified" size={20} color={colors.safeGreen} />
+            <Text style={[styles.statValue, { fontFamily: fontBold, color: colors.onSurface }]}>
+              {FEED_ITEMS.filter((i) => i.type === 'safe').length}
+            </Text>
+            <Text style={[styles.statLabel, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
+              verificados
+            </Text>
+          </View>
+        </View>
+      ) : null}
 
       {FEED_ITEMS.map((item) => (
         <FeedCard key={item.id} item={item} />
@@ -34,7 +76,6 @@ export function CommunityScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
   },
   containerTalkBack: {
     backgroundColor: '#000000',
@@ -43,23 +84,47 @@ const styles = StyleSheet.create({
     padding: spacing.edge,
     paddingBottom: SCROLL_BOTTOM_INSET,
   },
-  title: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
-    fontSize: 32,
-    letterSpacing: -0.5,
-    color: colors.onSurface,
-    marginBottom: 8,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
   },
-  subtitle: {
-    fontFamily: 'AtkinsonHyperlegible_400Regular',
-    fontSize: 16,
-    color: colors.onSurfaceVariant,
-    marginBottom: 16,
+  offlineBadge: {
+    borderWidth: 1,
+    borderRadius: radii.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
   },
-  textTalkBack: {
-    color: '#ffffff',
+  offlineText: {
+    fontSize: 9,
+    letterSpacing: 1.5,
   },
-  subtitleTalkBack: {
-    color: '#cccccc',
+  offlineSub: {
+    fontSize: 10,
+    marginTop: 2,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: radii.lg,
+    padding: spacing.gutter,
+    marginBottom: spacing.gutter,
+    marginTop: -8,
+  },
+  stat: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  statDivider: {
+    width: 1,
+    marginHorizontal: 8,
+  },
+  statValue: {
+    fontSize: 20,
+  },
+  statLabel: {
+    fontSize: 12,
   },
 });

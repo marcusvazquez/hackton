@@ -9,7 +9,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useAnimations } from '../hooks/useAnimations';
-import { colors, spacing } from '../theme/colors';
+import { useAppTheme } from '../hooks/useAppTheme';
+import { spacing } from '../theme/colors';
 import { mapOverlay } from '../theme/layout';
 import { radii, shadows } from '../theme/shadows';
 
@@ -19,6 +20,7 @@ type Props = {
 
 export function StatusCard({ onPressVer }: Props) {
   const { reduceMotion } = useAccessibility();
+  const { colors, fontBold, fontRegular } = useAppTheme();
   const { statusCardEnter } = useAnimations();
   const scale = useSharedValue(1);
 
@@ -38,16 +40,29 @@ export function StatusCard({ onPressVer }: Props) {
 
   return (
     <Animated.View entering={statusCardEnter} style={[styles.wrapper, cardStyle]}>
-      <View style={[styles.card, shadows.md]}>
-        <View style={styles.iconCircle}>
+      <View
+        style={[
+          styles.card,
+          shadows.md,
+          {
+            backgroundColor: colors.surfaceContainerLowest,
+            borderColor: colors.outlineVariant,
+          },
+        ]}
+      >
+        <View style={[styles.iconCircle, { backgroundColor: colors.secondaryFixed }]}>
           <MaterialIcons name="report" size={24} color={colors.onSecondaryFixed} />
         </View>
         <View style={styles.content}>
-          <Text style={styles.title}>Cerca: Zona Centro</Text>
-          <Text style={styles.subtitle}>2 barreras reportadas cerca de ti.</Text>
+          <Text style={[styles.title, { fontFamily: fontBold, color: colors.onSurface }]}>
+            Cerca: Zona Centro
+          </Text>
+          <Text style={[styles.subtitle, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
+            2 barreras reportadas cerca de ti.
+          </Text>
         </View>
-        <Pressable onPress={handlePress} style={styles.verButton}>
-          <Text style={styles.verText}>Ver</Text>
+        <Pressable onPress={handlePress} style={[styles.verButton, { backgroundColor: colors.secondary }]}>
+          <Text style={[styles.verText, { fontFamily: fontBold, color: colors.onSecondary }]}>Ver</Text>
           <MaterialIcons name="chevron-right" size={20} color={colors.onSecondary} />
         </Pressable>
       </View>
@@ -67,14 +82,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    backgroundColor: colors.surfaceContainerLowest,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
     borderRadius: radii.xl,
     padding: 18,
   },
   iconCircle: {
-    backgroundColor: colors.secondaryFixed,
     padding: 12,
     borderRadius: 999,
   },
@@ -82,28 +94,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
     fontSize: 20,
-    color: colors.onSurface,
   },
   subtitle: {
-    fontFamily: 'AtkinsonHyperlegible_400Regular',
     fontSize: 16,
-    color: colors.onSurfaceVariant,
     marginTop: 2,
   },
   verButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.secondary,
     height: 48,
     paddingHorizontal: 16,
     borderRadius: radii.md,
     gap: 2,
   },
   verText: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
     fontSize: 18,
-    color: colors.onSecondary,
   },
 });

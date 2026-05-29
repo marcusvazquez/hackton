@@ -5,6 +5,10 @@ export type FeedItem = {
   confirmations: number;
   timeAgo: string;
   type: 'barrier' | 'safe';
+  author?: string;
+  location?: string;
+  tags?: string[];
+  offline?: boolean;
 };
 
 export const FEED_ITEMS: FeedItem[] = [
@@ -15,6 +19,10 @@ export const FEED_ITEMS: FeedItem[] = [
     confirmations: 12,
     timeAgo: 'Hace 2 h',
     type: 'barrier',
+    author: '@maria_tj',
+    location: 'Centro',
+    tags: ['Acera', 'Parcial'],
+    offline: true,
   },
   {
     id: '2',
@@ -23,6 +31,9 @@ export const FEED_ITEMS: FeedItem[] = [
     confirmations: 28,
     timeAgo: 'Hace 5 h',
     type: 'safe',
+    author: '@ruta_libre',
+    location: 'Zona Río',
+    tags: ['Verificado', 'Rampas'],
   },
   {
     id: '3',

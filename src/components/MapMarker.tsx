@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { MapMarkerData } from '../data/markers';
 import { useAnimations } from '../hooks/useAnimations';
-import { colors } from '../theme/colors';
+import { useAppTheme } from '../hooks/useAppTheme';
 import { PulseRing } from './PulseRing';
 
 type Props = {
@@ -12,7 +12,9 @@ type Props = {
   index: number;
 };
 
-function markerColors(type: MapMarkerData['type']) {
+type ThemeColors = ReturnType<typeof useAppTheme>['colors'];
+
+function markerColors(type: MapMarkerData['type'], colors: ThemeColors) {
   switch (type) {
     case 'safe':
       return { bg: colors.safeGreen, text: '#ffffff', labelBg: '#ffffff', labelText: colors.safeGreen };
@@ -41,8 +43,9 @@ function markerColors(type: MapMarkerData['type']) {
 }
 
 export function MapMarker({ marker, index }: Props) {
+  const { colors, fontBold } = useAppTheme();
   const { markerEnter } = useAnimations();
-  const palette = markerColors(marker.type);
+  const palette = markerColors(marker.type, colors);
   const isPoi = marker.type === 'poi';
   const pulseVariant = marker.type === 'safe' ? 'safe' : 'barrier';
 
@@ -81,6 +84,7 @@ export function MapMarker({ marker, index }: Props) {
           {
             backgroundColor: palette.labelBg,
             borderWidth: isPoi ? 0 : 1,
+            borderColor: colors.outlineVariant,
           },
         ]}
       >
@@ -88,6 +92,7 @@ export function MapMarker({ marker, index }: Props) {
           style={[
             styles.labelText,
             {
+              fontFamily: fontBold,
               color: palette.labelText,
               fontSize: isPoi ? 8 : 10,
             },
@@ -128,10 +133,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
-    borderColor: colors.outlineVariant,
   },
   labelText: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },

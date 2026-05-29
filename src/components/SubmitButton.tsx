@@ -6,10 +6,9 @@ import Animated, {
   useSharedValue,
   withSequence,
   withTiming,
-  ZoomIn,
 } from 'react-native-reanimated';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { colors } from '../theme/colors';
+import { useAppTheme } from '../hooks/useAppTheme';
 import { radii, shadows } from '../theme/shadows';
 
 type ButtonState = 'idle' | 'loading' | 'success';
@@ -21,6 +20,7 @@ type Props = {
 
 export function SubmitButton({ disabled, onSuccess }: Props) {
   const { reduceMotion } = useAccessibility();
+  const { colors, fontBold } = useAppTheme();
   const [state, setState] = useState<ButtonState>('idle');
   const scale = useSharedValue(1);
   const checkScale = useSharedValue(0);
@@ -86,11 +86,20 @@ export function SubmitButton({ disabled, onSuccess }: Props) {
         {state === 'success' && (
           <Animated.View style={[styles.successRow, checkStyle]}>
             <MaterialIcons name="check" size={22} color={colors.onPrimary} />
-            <Text style={styles.successText}>¡Reporte Enviado!</Text>
+            <Text style={[styles.successText, { fontFamily: fontBold, color: colors.onPrimary }]}>
+              ¡Reporte Enviado!
+            </Text>
           </Animated.View>
         )}
         {state === 'idle' && (
-          <Text style={styles.text}>Enviar reporte</Text>
+          <Text
+            style={[
+              styles.text,
+              { fontFamily: fontBold, color: colors.onSecondaryContainer },
+            ]}
+          >
+            Enviar reporte
+          </Text>
         )}
       </Pressable>
     </Animated.View>
@@ -110,9 +119,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   text: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
     fontSize: 18,
-    color: colors.onSecondaryContainer,
   },
   loadingRow: {
     paddingVertical: 4,
@@ -123,8 +130,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   successText: {
-    fontFamily: 'AtkinsonHyperlegible_700Bold',
     fontSize: 18,
-    color: colors.onPrimary,
   },
 });

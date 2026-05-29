@@ -9,7 +9,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useAnimations } from '../hooks/useAnimations';
-import { colors, spacing } from '../theme/colors';
+import { useAppTheme } from '../hooks/useAppTheme';
+import { spacing } from '../theme/colors';
 import { mapOverlay } from '../theme/layout';
 import { radii, shadows } from '../theme/shadows';
 
@@ -19,6 +20,7 @@ type Props = {
 
 export function ReportFab({ onPress }: Props) {
   const { reduceMotion } = useAccessibility();
+  const { colors, isHackathon } = useAppTheme();
   const { fabEnter } = useAnimations();
   const scale = useSharedValue(1);
   const rotate = useSharedValue(0);
@@ -63,7 +65,16 @@ export function ReportFab({ onPress }: Props) {
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
       >
-        <Animated.View style={[styles.fab, fabStyle]}>
+        <Animated.View
+          style={[
+            styles.fab,
+            {
+              backgroundColor: colors.secondaryContainer,
+              borderColor: isHackathon ? colors.primary : '#ffffff',
+            },
+            fabStyle,
+          ]}
+        >
           {ripples.map((id) => (
             <Ripple key={id} />
           ))}
@@ -104,11 +115,9 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: radii.pill,
-    backgroundColor: colors.secondaryContainer,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#ffffff',
     ...shadows.lg,
     overflow: 'hidden',
   },

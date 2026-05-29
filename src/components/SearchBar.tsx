@@ -16,11 +16,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { SEARCH_SUGGESTIONS } from '../data/markers';
-import { colors, spacing } from '../theme/colors';
-import { glass, radii, shadows } from '../theme/shadows';
+import { useAppTheme } from '../hooks/useAppTheme';
+import { spacing } from '../theme/colors';
+import { radii, shadows } from '../theme/shadows';
 
 export function SearchBar() {
   const { reduceMotion } = useAccessibility();
+  const { colors, glass, fontRegular } = useAppTheme();
   const [focused, setFocused] = useState(false);
   const [query, setQuery] = useState('');
   const borderProgress = useSharedValue(0);
@@ -67,7 +69,13 @@ export function SearchBar() {
 
   return (
     <View style={styles.wrapper}>
-      <Animated.View style={[styles.container, containerStyle]}>
+      <Animated.View
+        style={[
+          styles.container,
+          { backgroundColor: glass.light },
+          containerStyle,
+        ]}
+      >
         <MaterialIcons name="location-on" size={24} color={colors.primary} style={styles.leadingIcon} />
         <View style={styles.inputWrap}>
           <TextInput
@@ -76,11 +84,14 @@ export function SearchBar() {
             onChangeText={setQuery}
             onFocus={() => setFocused(true)}
             placeholder=""
-            style={styles.input}
+            style={[styles.input, { fontFamily: fontRegular, color: colors.onSurface }]}
             value={query}
           />
           {!query && (
-            <Animated.Text pointerEvents="none" style={[styles.placeholder, placeholderStyle]}>
+            <Animated.Text
+              pointerEvents="none"
+              style={[styles.placeholder, { fontFamily: fontRegular, color: colors.outline }, placeholderStyle]}
+            >
               ¿A dónde vas?
             </Animated.Text>
           )}
@@ -88,7 +99,7 @@ export function SearchBar() {
         <Pressable accessibilityLabel="Búsqueda por voz" style={styles.iconBtn}>
           <MaterialIcons name="mic" size={24} color={colors.primary} />
         </Pressable>
-        <Pressable style={styles.directionsBtn}>
+        <Pressable style={[styles.directionsBtn, { backgroundColor: colors.primary }]}>
           <MaterialIcons name="directions" size={24} color={colors.onPrimary} />
         </Pressable>
       </Animated.View>
@@ -96,7 +107,13 @@ export function SearchBar() {
       {focused && suggestions.length > 0 && (
         <Animated.View
           entering={reduceMotion ? undefined : FadeInDown.duration(250).easing(Easing.out(Easing.quad))}
-          style={styles.dropdown}
+          style={[
+            styles.dropdown,
+            {
+              backgroundColor: colors.surfaceContainerLowest,
+              borderColor: colors.outlineVariant,
+            },
+          ]}
         >
           {suggestions.map((item, index) => (
             <Animated.View
@@ -112,10 +129,12 @@ export function SearchBar() {
                   setQuery(item);
                   setFocused(false);
                 }}
-                style={styles.suggestionRow}
+                style={[styles.suggestionRow, { borderBottomColor: colors.outlineVariant }]}
               >
                 <MaterialIcons name="place" size={18} color={colors.outline} />
-                <Text style={styles.suggestionText}>{item}</Text>
+                <Text style={[styles.suggestionText, { fontFamily: fontRegular, color: colors.onSurface }]}>
+                  {item}
+                </Text>
               </Pressable>
             </Animated.View>
           ))}
@@ -136,7 +155,6 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: glass.light,
     borderRadius: radii.lg,
     borderWidth: 1,
     padding: 10,
@@ -150,35 +168,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   input: {
-    fontFamily: 'AtkinsonHyperlegible_400Regular',
     fontSize: 18,
-    color: colors.onSurface,
     paddingVertical: 8,
     paddingHorizontal: 4,
   },
   placeholder: {
     position: 'absolute',
     left: 4,
-    fontFamily: 'AtkinsonHyperlegible_400Regular',
     fontSize: 18,
-    color: colors.outline,
   },
   iconBtn: {
     padding: 8,
     borderRadius: 999,
   },
   directionsBtn: {
-    backgroundColor: colors.primary,
     padding: 10,
     borderRadius: radii.md,
     marginLeft: 4,
   },
   dropdown: {
     marginTop: 8,
-    backgroundColor: colors.surfaceContainerLowest,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
     overflow: 'hidden',
   },
   suggestionRow: {
@@ -188,11 +199,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
   },
   suggestionText: {
-    fontFamily: 'AtkinsonHyperlegible_400Regular',
     fontSize: 16,
-    color: colors.onSurface,
   },
 });
