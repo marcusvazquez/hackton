@@ -5,6 +5,7 @@ import { TalkBackOverlay } from '../components/TalkBackOverlay';
 import { SectionHeader } from '../components/SectionHeader';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { useExpertPrefs } from '../hooks/useExpertPrefs';
 import { EXPERT_PREFS } from '../data/expertPrefs';
 import { getPersonTypeLabel, PERSON_TYPES } from '../data/personTypes';
 import {
@@ -33,9 +34,7 @@ export function ProfileScreen({ onBack }: Props) {
   const { colors, glass, fontBold, fontRegular, isHackathon } = useAppTheme();
   const [showOverlay, setShowOverlay] = useState(false);
   const [pendingValue, setPendingValue] = useState<boolean | null>(null);
-  const [expertPrefs, setExpertPrefs] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(EXPERT_PREFS.map((p) => [p.id, p.defaultOn])),
-  );
+  const { prefs: expertPrefs, setPref } = useExpertPrefs();
 
   const storagePct = Math.round((STORAGE_USED_MB / STORAGE_TOTAL_MB) * 100);
 
@@ -353,7 +352,7 @@ export function ProfileScreen({ onBack }: Props) {
                 </View>
                 <Switch
                   accessibilityLabel={pref.label}
-                  onValueChange={(v) => setExpertPrefs((prev) => ({ ...prev, [pref.id]: v }))}
+                  onValueChange={(v) => setPref(pref.id, v)}
                   thumbColor={expertPrefs[pref.id] ? colors.primary : '#f4f3f4'}
                   trackColor={{ false: colors.outlineVariant, true: colors.primaryContainer }}
                   value={expertPrefs[pref.id]}

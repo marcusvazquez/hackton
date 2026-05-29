@@ -10,9 +10,10 @@ import { radii, shadows } from '../theme/shadows';
 type Props = {
   onMenuPress: () => void;
   onSearchPress?: () => void;
+  onSettingsPress?: () => void;
 };
 
-export function AppHeader({ onMenuPress, onSearchPress }: Props) {
+export function AppHeader({ onMenuPress, onSearchPress, onSettingsPress }: Props) {
   const insets = useSafeAreaInsets();
   const { talkBackEnabled } = useAccessibility();
   const { colors, glass, fontBold, isHackathon } = useAppTheme();
@@ -49,17 +50,32 @@ export function AppHeader({ onMenuPress, onSearchPress }: Props) {
       >
         Ruta Libre
       </Text>
-      <Pressable
-        accessibilityLabel="Buscar"
-        onPress={onSearchPress}
-        style={styles.iconButton}
-      >
-        <MaterialIcons
-          name="search"
-          size={24}
-          color={talkBackEnabled ? '#ffffff' : colors.primary}
-        />
-      </Pressable>
+      <View style={styles.trailingActions}>
+        {onSettingsPress ? (
+          <Pressable
+            accessibilityLabel="Configuración offline"
+            onPress={onSettingsPress}
+            style={styles.iconButton}
+          >
+            <MaterialIcons
+              name="settings"
+              size={24}
+              color={talkBackEnabled ? '#ffffff' : colors.primary}
+            />
+          </Pressable>
+        ) : null}
+        <Pressable
+          accessibilityLabel="Buscar"
+          onPress={onSearchPress}
+          style={styles.iconButton}
+        >
+          <MaterialIcons
+            name="search"
+            size={24}
+            color={talkBackEnabled ? '#ffffff' : colors.primary}
+          />
+        </Pressable>
+      </View>
       </View>
     </View>
   );
@@ -87,8 +103,14 @@ const styles = StyleSheet.create({
     marginHorizontal: -8,
   },
   title: {
+    flex: 1,
     fontSize: 24,
     letterSpacing: -0.3,
+    textAlign: 'center',
+  },
+  trailingActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerHackathon: {
     shadowColor: '#00e5ff',

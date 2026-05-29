@@ -12,22 +12,26 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppHeader } from './src/components/AppHeader';
 import { BottomNav } from './src/components/BottomNav';
+import { NetStatusBanner } from './src/components/NetStatusBanner';
 import { HackathonBackdrop } from './src/components/HackathonBackdrop';
 import { ReduceMotionStyles } from './src/components/ReduceMotionStyles';
 import { ScreenTransition } from './src/components/ScreenTransition';
 import { AccessibilityProvider, useAccessibility } from './src/context/AccessibilityContext';
+import { OfflineProvider } from './src/context/OfflineContext';
 import { CommunityScreen } from './src/screens/CommunityScreen';
 import { DetailScreen } from './src/screens/DetailScreen';
+import { ExpertModeScreen } from './src/screens/ExpertModeScreen';
 import { MapScreen } from './src/screens/MapScreen';
 import { PersonTypeScreen } from './src/screens/PersonTypeScreen';
 import { PlanearScreen } from './src/screens/PlanearScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ReportScreen } from './src/screens/ReportScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
 import { useAppTheme } from './src/hooks/useAppTheme';
 import { colors as defaultColors } from './src/theme/colors';
 import { TabId } from './src/types/navigation';
 
-type OverlayScreen = 'perfil' | 'detalle' | null;
+type OverlayScreen = 'perfil' | 'detalle' | 'settings' | 'expert' | null;
 
 function AppShell() {
   const { talkBackEnabled } = useAccessibility();
@@ -56,15 +60,40 @@ function AppShell() {
           />
         );
       case 'planear':
-        return <PlanearScreen onOpenDetail={() => setOverlay('detalle')} />;
+        return (
+          <PlanearScreen
+            onOpenDetail={() => setOverlay('detalle')}
+            onOpenExpert={() => setOverlay('expert')}
+          />
+        );
       case 'reportar':
         return <ReportScreen onReportSuccess={handleReportSuccess} />;
       case 'comunidad':
-        return <CommunityScreen />;
+        return <CommunityScreen onGoToReport={() => setActiveTab('reportar')} />;
       default:
         return null;
     }
   };
+
+  if (overlay === 'expert') {
+    return (
+      <View style={shellStyle}>
+        <HackathonBackdrop />
+        <StatusBar style={statusStyle} />
+        <ExpertModeScreen onClose={() => setOverlay(null)} />
+      </View>
+    );
+  }
+
+  if (overlay === 'settings') {
+    return (
+      <View style={shellStyle}>
+        <HackathonBackdrop />
+        <StatusBar style={statusStyle} />
+        <SettingsScreen onBack={() => setOverlay(null)} />
+      </View>
+    );
+  }
 
   if (overlay === 'perfil') {
     return (
@@ -93,7 +122,9 @@ function AppShell() {
       <AppHeader
         onMenuPress={() => setOverlay('perfil')}
         onSearchPress={() => setActiveTab('mapa')}
+        onSettingsPress={() => setOverlay('settings')}
       />
+      <NetStatusBanner />
       <View style={styles.main}>
         <ScreenTransition screenKey={activeTab}>
           {renderTabContent()}
@@ -124,8 +155,10 @@ export default function App() {
     <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
         <AccessibilityProvider>
-          <ReduceMotionStyles />
-          <RootNavigator />
+          <OfflineProvider>
+            <ReduceMotionStyles />
+            <RootNavigator />
+          </OfflineProvider>
         </AccessibilityProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

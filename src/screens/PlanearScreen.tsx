@@ -19,9 +19,10 @@ import { radii } from '../theme/shadows';
 
 type Props = {
   onOpenDetail?: () => void;
+  onOpenExpert?: () => void;
 };
 
-export function PlanearScreen({ onOpenDetail }: Props) {
+export function PlanearScreen({ onOpenDetail, onOpenExpert }: Props) {
   const { colors, fontBold, fontRegular, isHackathon } = useAppTheme();
   const [origin, setOrigin] = useState('Mi ubicación');
   const [destination, setDestination] = useState('');
@@ -97,6 +98,28 @@ export function PlanearScreen({ onOpenDetail }: Props) {
           </>
         ) : (
           <>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => onOpenExpert?.()}
+              style={[
+                styles.expertBtn,
+                {
+                  backgroundColor: colors.surfaceContainer,
+                  borderColor: colors.outlineVariant,
+                },
+              ]}
+            >
+              <MaterialIcons name="settings" size={20} color={colors.primary} />
+              <Text
+                style={[
+                  styles.expertBtnText,
+                  { fontFamily: fontRegular, color: colors.primary },
+                ]}
+              >
+                Ajustes Avanzados (Expert Mode)
+              </Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.primary} />
+            </Pressable>
             {ROUTE_OPTIONS.map((route) => (
               <RouteOptionCard
                 key={route.id}
@@ -163,4 +186,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   backText: { fontSize: 15 },
+  expertBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: radii.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  expertBtnText: {
+    flex: 1,
+    fontSize: 15,
+  },
 });
