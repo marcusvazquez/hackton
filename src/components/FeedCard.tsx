@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -78,6 +79,16 @@ export function FeedCard({ item }: Props) {
 
   const isSafe = item.type === 'safe';
   const visible = inView || Platform.OS !== 'web';
+  const isResolved = item.status === 'solucionado';
+
+  const statusBadgeConfig =
+    item.status === 'reportado'
+      ? { bg: '#f97316', icon: 'warning' as const, label: 'REPORTADO ⚠' }
+      : item.status === 'en_revision'
+        ? { bg: colors.surfaceContainerHigh, icon: 'search' as const, label: 'EN REVISIÓN' }
+        : item.status === 'solucionado'
+          ? { bg: colors.safeGreen, icon: 'check-circle' as const, label: 'SOLUCIONADO ✓' }
+          : null;
 
   return (
     <View ref={ref} collapsable={false} style={!visible ? styles.placeholder : undefined}>
@@ -86,6 +97,7 @@ export function FeedCard({ item }: Props) {
         entering={!reduceMotion ? feedEnter : undefined}
         style={[
           styles.card,
+          item.status ? styles.cardWithStatusBadge : undefined,
           talkBackEnabled
             ? styles.cardTalkBack
             : {
@@ -94,6 +106,17 @@ export function FeedCard({ item }: Props) {
               },
         ]}
       >
+        {statusBadgeConfig ? (
+          <View style={[styles.statusBadge, { backgroundColor: statusBadgeConfig.bg }]}>
+            <MaterialIcons name={statusBadgeConfig.icon} size={14} color="#ffffff" />
+            <Text style={[styles.statusBadgeText, { fontFamily: fontBold }]}>
+              {statusBadgeConfig.label}
+            </Text>
+          </View>
+        ) : null}
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.thumbnail} contentFit="cover" />
+        ) : null}
         <View style={[styles.badge, { backgroundColor: isSafe ? colors.safeGreen : colors.secondaryContainer }]}>
           <MaterialIcons
             name={isSafe ? 'check-circle' : 'warning'}
@@ -125,6 +148,11 @@ export function FeedCard({ item }: Props) {
                 </View>
               ) : null}
             </View>
+          ) : null}
+          {item.zoneName ? (
+            <Text style={[styles.zoneName, { fontFamily: fontBold, color: colors.primary }]}>
+              {item.zoneName}
+            </Text>
           ) : null}
           <Text
             style={[
@@ -165,55 +193,71 @@ export function FeedCard({ item }: Props) {
             >
               {item.timeAgo}
             </Text>
-            <View style={styles.confirmRow}>
-              <View style={styles.countWrap}>
-                <Animated.Text
-                  style={[
-                    styles.count,
-                    { fontFamily: fontBold, color: colors.primary },
-                    oldCountStyle,
-                  ]}
-                >
+            {isResolved ? (
+              <View style={styles.resolvedRow}>
+                <MaterialIcons name="thumb-up" size={20} color={colors.onSurfaceVariant} />
+                <Text style={[styles.resolvedCount, { fontFamily: fontBold, color: colors.onSurfaceVariant }]}>
                   {count}
-                </Animated.Text>
-                {!reduceMotion && (
+                </Text>
+                <Text style={[styles.resolvedLabel, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
+                  confirmaciones
+                </Text>
+                <MaterialIcons name="share" size={20} color={colors.onSurfaceVariant} />
+                <Text style={[styles.shareLabel, { fontFamily: fontRegular, color: colors.onSurfaceVariant }]}>
+                  Compartir
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.confirmRow}>
+                <View style={styles.countWrap}>
                   <Animated.Text
                     style={[
                       styles.count,
                       { fontFamily: fontBold, color: colors.primary },
-                      newCountStyle,
+                      oldCountStyle,
                     ]}
                   >
-                    {count + 1}
+                    {count}
                   </Animated.Text>
-                )}
-              </View>
-              <Text
-                style={[
-                  styles.confirmLabel,
-                  { fontFamily: fontRegular },
-                  talkBackEnabled ? styles.subtitleTalkBack : { color: colors.onSurfaceVariant },
-                ]}
-              >
-                {' '}
-                confirmaciones
-              </Text>
-              <Animated.View style={btnStyle}>
-                <Pressable
-                  onPress={handleConfirm}
-                  style={[styles.confirmBtn, { backgroundColor: colors.primaryContainer }]}
+                  {!reduceMotion && (
+                    <Animated.Text
+                      style={[
+                        styles.count,
+                        { fontFamily: fontBold, color: colors.primary },
+                        newCountStyle,
+                      ]}
+                    >
+                      {count + 1}
+                    </Animated.Text>
+                  )}
+                </View>
+                <Text
+                  style={[
+                    styles.confirmLabel,
+                    { fontFamily: fontRegular },
+                    talkBackEnabled ? styles.subtitleTalkBack : { color: colors.onSurfaceVariant },
+                  ]}
                 >
-                  <Text
-                    style={[
-                      styles.confirmText,
-                      { fontFamily: fontBold, color: colors.onPrimaryContainer },
-                    ]}
+                  {' '}
+                  confirmaciones
+                </Text>
+                <Animated.View style={btnStyle}>
+                  <Pressable
+                    onPress={handleConfirm}
+                    style={[styles.confirmBtn, { backgroundColor: colors.primaryContainer }]}
                   >
-                    Confirmar
-                  </Text>
-                </Pressable>
-              </Animated.View>
-            </View>
+                    <Text
+                      style={[
+                        styles.confirmText,
+                        { fontFamily: fontBold, color: colors.onPrimaryContainer },
+                      ]}
+                    >
+                      Confirmar
+                    </Text>
+                  </Pressable>
+                </Animated.View>
+              </View>
+            )}
           </View>
         </View>
       </Animated.View>
@@ -234,8 +278,50 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: spacing.gutter,
     marginBottom: spacing.gutter,
+    position: 'relative',
     ...shadows.sm,
   },
+  cardWithStatusBadge: {
+    paddingRight: 110,
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    zIndex: 2,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    letterSpacing: 0.5,
+    color: '#ffffff',
+  },
+  thumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+  },
+  zoneName: {
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  resolvedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  resolvedCount: { fontSize: 14 },
+  resolvedLabel: { fontSize: 14, marginRight: 8 },
+  shareLabel: { fontSize: 14 },
   cardTalkBack: {
     backgroundColor: '#111111',
     borderColor: '#ffffff44',
