@@ -28,7 +28,7 @@ type Props = {
 
 export function ReportScreen({ onReportSuccess }: Props) {
   const { talkBackEnabled, reduceMotion } = useAccessibility();
-  const { colors, fontBold, fontRegular, isHackathon, spacing } = useAppTheme();
+  const { colors, fontBold, fontRegular, isHackathon, spacing: themeSpacing } = useAppTheme();
   const { isOnline } = useNetworkStatus();
   const { addToQueue, syncQueue } = useOfflineContext();
   const [selected, setSelected] = useState<string | null>(null);
@@ -144,7 +144,6 @@ export function ReportScreen({ onReportSuccess }: Props) {
           )}
 
           {barrierGrid}
-
           <SubmitButton disabled={!selected} onSuccess={onReportSuccess} />
         </>
       ) : (
@@ -154,8 +153,8 @@ export function ReportScreen({ onReportSuccess }: Props) {
               styles.offlineStatusBar,
               {
                 backgroundColor: OFFLINE_AMBER,
-                paddingVertical: spacing.gutter / 2,
-                paddingHorizontal: spacing.edge,
+                paddingVertical: themeSpacing.gutter / 2,
+                paddingHorizontal: themeSpacing.edge,
               },
             ]}
           >
@@ -333,8 +332,7 @@ export function ReportScreen({ onReportSuccess }: Props) {
                 01 Captura
               </Text>
               <Text style={[styles.stepBody, { fontFamily: fontRegular, color: gray }]}>
-                Captura coordenadas GPS, imagen comprimida y metadatos del incidente sin red
-                activa.
+                Captura coordenadas GPS, imagen comprimida y metadatos del incidente sin red activa.
               </Text>
             </View>
             <View style={[styles.step, { borderLeftColor: colors.secondary }]}>
@@ -346,14 +344,11 @@ export function ReportScreen({ onReportSuccess }: Props) {
               </Text>
             </View>
             <View style={[styles.step, { borderLeftColor: colors.safeGreen }]}>
-              <Text
-                style={[styles.stepTitle, { fontFamily: fontBold, color: colors.safeGreen }]}
-              >
+              <Text style={[styles.stepTitle, { fontFamily: fontBold, color: colors.safeGreen }]}>
                 03 Liberación
               </Text>
               <Text style={[styles.stepBody, { fontFamily: fontRegular, color: gray }]}>
-                Al detectar red, transmite por paquetes garantizando el 100% de llegada al
-                servidor.
+                Al detectar red, transmite por paquetes garantizando el 100% de llegada al servidor.
               </Text>
             </View>
           </View>
@@ -361,8 +356,7 @@ export function ReportScreen({ onReportSuccess }: Props) {
           <View style={[styles.motivationBanner, { backgroundColor: colors.primary }]}>
             <MaterialIcons name="campaign" size={32} color="#ffffff" style={styles.campaignIcon} />
             <Text style={[styles.motivationText, { fontFamily: fontBold }]}>
-              No dejes que la falta de señal te detenga. Cada reporte cuenta para una comunidad
-              libre.
+              No dejes que la falta de señal te detenga. Cada reporte cuenta para una comunidad libre.
             </Text>
             <Pressable
               accessibilityRole="button"
@@ -381,12 +375,8 @@ export function ReportScreen({ onReportSuccess }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  containerTalkBack: {
-    backgroundColor: '#000000',
-  },
+  container: { flex: 1 },
+  containerTalkBack: { backgroundColor: '#000000' },
   content: {
     padding: spacing.edge,
     paddingBottom: SCROLL_BOTTOM_INSET,
@@ -398,22 +388,10 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
-  hintText: {
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  subtitle: {
-    fontSize: 16,
-    marginBottom: 24,
-  },
-  subtitleTalkBack: {
-    color: '#cccccc',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
+  hintText: { fontSize: 13, lineHeight: 20 },
+  subtitle: { fontSize: 16, marginBottom: 24 },
+  subtitleTalkBack: { color: '#cccccc' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   offlineStatusBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -422,11 +400,7 @@ const styles = StyleSheet.create({
     marginHorizontal: -spacing.edge,
     marginTop: -8,
   },
-  offlineStatusText: {
-    fontSize: 12,
-    color: '#ffffff',
-    letterSpacing: 0.5,
-  },
+  offlineStatusText: { fontSize: 12, color: '#ffffff', letterSpacing: 0.5 },
   heroCard: {
     borderWidth: 1,
     borderRadius: radii.lg,
@@ -434,13 +408,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.gutter,
     gap: 8,
   },
-  heroTitle: {
-    fontSize: 24,
-  },
-  heroSubtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
+  heroTitle: { fontSize: 24 },
+  heroSubtitle: { fontSize: 15, lineHeight: 22 },
   syncIconWrap: {
     width: 80,
     height: 80,
@@ -458,22 +427,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.gutter,
     gap: 8,
   },
-  guaranteedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  guaranteedTitle: {
-    fontSize: 18,
-  },
-  guaranteedDesc: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  separator: {
-    height: 1,
-    marginVertical: 4,
-  },
+  guaranteedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  guaranteedTitle: { fontSize: 18 },
+  guaranteedDesc: { fontSize: 14, lineHeight: 20 },
+  separator: { height: 1, marginVertical: 4 },
   queueRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -481,24 +438,10 @@ const styles = StyleSheet.create({
     gap: 8,
     flexWrap: 'wrap',
   },
-  queueId: {
-    fontSize: 13,
-    flex: 1,
-  },
-  queueSignal: {
-    fontSize: 11,
-    letterSpacing: 0.5,
-  },
-  queueBarTrack: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-    width: '100%',
-  },
-  queueBarFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
+  queueId: { fontSize: 13, flex: 1 },
+  queueSignal: { fontSize: 11, letterSpacing: 0.5 },
+  queueBarTrack: { height: 4, borderRadius: 2, overflow: 'hidden', width: '100%' },
+  queueBarFill: { height: '100%', borderRadius: 2 },
   queueMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -506,23 +449,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
-  queueMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  queueMetaText: {
-    fontSize: 12,
-  },
-  offlineGridWrap: {
-    marginBottom: spacing.gutter,
-  },
-  pillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: spacing.gutter,
-  },
+  queueMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  queueMetaText: { fontSize: 12 },
+  offlineGridWrap: { marginBottom: spacing.gutter },
+  pillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.gutter },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -531,14 +461,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  pillDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  pillText: {
-    fontSize: 12,
-  },
+  pillDot: { width: 8, height: 8, borderRadius: 4 },
+  pillText: { fontSize: 12 },
   saveQueueBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -548,10 +472,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     marginTop: 8,
   },
-  saveQueueBtnText: {
-    fontSize: 16,
-    color: '#ffffff',
-  },
+  saveQueueBtnText: { fontSize: 16, color: '#ffffff' },
   savedCard: {
     borderWidth: 1,
     borderRadius: radii.md,
@@ -560,49 +481,21 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 8,
   },
-  savedText: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  savedPill: {
-    borderRadius: radii.pill,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  savedPillText: {
-    fontSize: 12,
-  },
-  howItWorks: {
-    marginTop: 24,
-    gap: 4,
-  },
-  howTitle: {
-    fontSize: 18,
-    marginBottom: 8,
-  },
-  step: {
-    borderLeftWidth: 3,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  stepTitle: {
-    fontSize: 15,
-    marginBottom: 4,
-  },
-  stepBody: {
-    fontSize: 13,
-    lineHeight: 20,
-  },
+  savedText: { fontSize: 16, textAlign: 'center' },
+  savedPill: { borderRadius: radii.pill, paddingVertical: 6, paddingHorizontal: 12 },
+  savedPillText: { fontSize: 12 },
+  howItWorks: { marginTop: 24, gap: 4 },
+  howTitle: { fontSize: 18, marginBottom: 8 },
+  step: { borderLeftWidth: 3, paddingVertical: 12, paddingHorizontal: 16, marginBottom: 12 },
+  stepTitle: { fontSize: 15, marginBottom: 4 },
+  stepBody: { fontSize: 13, lineHeight: 20 },
   motivationBanner: {
     borderRadius: radii.md,
     padding: spacing.edge,
     marginTop: 8,
     alignItems: 'center',
   },
-  campaignIcon: {
-    marginBottom: 8,
-  },
+  campaignIcon: { marginBottom: 8 },
   motivationText: {
     fontSize: 15,
     color: '#ffffff',
@@ -617,8 +510,5 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
   },
-  motivationBtnText: {
-    fontSize: 15,
-    color: '#ffffff',
-  },
+  motivationBtnText: { fontSize: 15, color: '#ffffff' },
 });

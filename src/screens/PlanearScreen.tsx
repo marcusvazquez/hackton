@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   ImageBackground,
   KeyboardAvoidingView,
   Platform,
@@ -13,8 +14,16 @@ import {
   View,
 } from 'react-native';
 import { RouteOptionCard } from '../components/RouteOptionCard';
+import { SectionHeader } from '../components/SectionHeader';
+import { useMapLocation } from '../context/MapLocationContext';
 import { ENV_FILTERS, MOBILITY_SUPPORT, ROUTE_OPTIONS } from '../data/routes';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { getGeolocationErrorMessage } from '../utils/geolocation';
+import {
+  forwardGeocode,
+  PLACE_COORDINATES,
+  resolvePlaceCoordinates,
+} from '../utils/nominatim';
 import { SCROLL_BOTTOM_INSET } from '../theme/layout';
 import { radii, shadows } from '../theme/shadows';
 
@@ -48,11 +57,6 @@ const ENV_FILTER_META: Partial<Record<string, EnvFilterMeta>> = {
   },
 };
 
-const MOBILITY_ACCENT: Partial<Record<string, string>> = {
-  wheelchair: undefined,
-  cane: '#924c00',
-};
-
 function getEnvMeta(filterId: string, label: string, icon: string): EnvFilterMeta {
   const custom = ENV_FILTER_META[filterId];
   if (custom) return custom;
@@ -65,269 +69,333 @@ function getEnvMeta(filterId: string, label: string, icon: string): EnvFilterMet
 }
 
 export function PlanearScreen({ onOpenDetail, onOpenExpert }: Props) {
-  const { colors, fontBold, fontRegular, spacing } = useAppTheme();
+  const { colors, fontBold, fontRegular, isHackathon, spacing } = useAppTheme();
+  const { locateUser, flyTo, geocodeAndFly } = useMapLocation();
+
+  const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
-  const [showResults, setShowResults] = useState(false);
-  const [selectedRouteId, setSelectedRouteId] = useState('accessible');
+  const [originCoords, setOriginCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [originLoading, setOriginLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [step, setStep] = useState<'search' | 'results'>('search');
+  const [selectedId, setSelectedId] = useState('accessible');
   const [envFilters, setEnvFilters] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(ENV_FILTERS.map((filter) => [filter.id, false])),
   );
   const [mobilityId, setMobilityId] = useState<string>(MOBILITY_SUPPORT[0]?.id ?? 'wheelchair');
 
   const gray = colors.onSurfaceVariant;
-
-  const toggleEnvFilter = (id: string, value: boolean) => {
-    setEnvFilters((prev) => ({ ...prev, [id]: value }));
-  };
-
-  const handleSearch = () => {
-    if (destination.trim().length > 0) {
-      setShowResults(true);
-    }
-  };
+  const hasOrigin = origin.trim().length > 0;
+  const hasDestination = destination.trim().length > 0;
+  const canSearch = hasOrigin && hasDestination;
 
   const mobilityPrimary = useMemo(
     () => MOBILITY_SUPPORT.filter((item) => item.id === 'wheelchair' || item.id === 'cane'),
     [],
   );
 
-  const mobilitySecondary = useMemo(
-    () => MOBILITY_SUPPORT.filter((item) => item.id !== 'wheelchair' && item.id !== 'cane'),
-    [],
-  );
+  const handleUseMyLocation = useCallback(async () => {
+    setOriginLoading(true);
+    setLocationError(null);
+    try {
+      const { address, coords } = await locateUser();
+      setOrigin(address);
+      setOriginCoords(coords);
+    } catch (error) {
+      setLocationError(getGeolocationErrorMessage(error));
+    } finally {
+      setOriginLoading(false);
+    }
+  }, [locateUser]);
+
+  const handleDestinationSubmit = useCallback(async () => {
+    const trimmed = destination.trim();
+    if (!trimmed) return;
+    if (trimmed in PLACE_COORDINATES) {
+      flyTo(resolvePlaceCoordinates(trimmed));
+      return;
+    }
+    const result = await forwardGeocode(trimmed);
+    if (result) flyTo({ lat: result.lat, lng: result.lng });
+  }, [destination, flyTo]);
+
+  const handleSearch = async () => {
+    if (!canSearch) return;
+    await geocodeAndFly(destination.trim());
+    setStep('results');
+  };
+
+  const toggleEnvFilter = (id: string, value: boolean) => {
+    setEnvFilters((prev) => ({ ...prev, [id]: value }));
+  };
 
   return (
     <KeyboardAvoidingView
-      style={[styles.flex, { backgroundColor: colors.surface }]}
+      style={[styles.flex, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
         contentContainerStyle={[styles.scroll, { padding: spacing.edge, paddingBottom: SCROLL_BOTTOM_INSET }]}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
       >
-        <View
-          style={[
-            styles.searchBar,
-            {
-              backgroundColor: colors.surfaceContainerLow,
-              borderColor: colors.outlineVariant,
-              paddingHorizontal: spacing.gutter,
-            },
-          ]}
-        >
-          <MaterialIcons name="search" size={22} color={colors.primary} />
-          <TextInput
-            value={destination}
-            onChangeText={setDestination}
-            onSubmitEditing={handleSearch}
-            placeholder="¿A dónde vas?"
-            placeholderTextColor={gray}
-            returnKeyType="search"
-            style={[styles.searchInput, { fontFamily: fontRegular, color: colors.onSurface }]}
-          />
-        </View>
+        <SectionHeader
+          title={step === 'search' ? 'Planear ruta' : 'Selección de ruta'}
+          subtitle={
+            step === 'search'
+              ? 'Destino accesible en Tijuana'
+              : `${origin} → ${destination || 'Destino'}`
+          }
+        />
 
-        <View style={styles.sectionHeader}>
-          <MaterialIcons name="filter-list" size={22} color={colors.primary} />
-          <Text style={[styles.sectionTitle, { fontFamily: fontBold, color: colors.primary }]}>
-            Filtros Ambientales
-          </Text>
-        </View>
-
-        <View
-          style={[
-            styles.block,
-            {
-              backgroundColor: colors.surfaceContainerLowest,
-              borderColor: colors.outlineVariant,
-            },
-          ]}
-        >
-          {ENV_FILTERS.map((filter) => {
-            const meta = getEnvMeta(filter.id, filter.label, filter.icon);
-            return (
-              <View
-                key={filter.id}
-                style={[styles.filterRow, { borderBottomColor: colors.outlineVariant }]}
+        {step === 'search' ? (
+          <>
+            <View
+              style={[
+                styles.field,
+                {
+                  borderColor: locationError ? colors.error : colors.outlineVariant,
+                  backgroundColor: colors.surfaceContainerLow,
+                },
+              ]}
+            >
+              <Pressable
+                accessibilityLabel="Usar mi ubicación actual"
+                accessibilityRole="button"
+                disabled={originLoading}
+                onPress={handleUseMyLocation}
+                style={styles.locationBtn}
               >
-                <View style={[styles.filterIconBox, { backgroundColor: meta.accent }]}>
-                  <MaterialIcons name={meta.icon} size={24} color="#ffffff" />
-                </View>
-                <View style={styles.filterTextWrap}>
-                  <Text style={[styles.filterTitle, { fontFamily: fontBold, color: colors.onSurface }]}>
-                    {meta.title}
-                  </Text>
-                  <Text style={[styles.filterSubtitle, { fontFamily: fontRegular, color: gray }]}>
-                    {meta.subtitle}
-                  </Text>
-                </View>
-                <Switch
-                  accessibilityLabel={meta.title}
-                  onValueChange={(value) => toggleEnvFilter(filter.id, value)}
-                  thumbColor={envFilters[filter.id] ? colors.primary : '#f4f3f4'}
-                  trackColor={{
-                    false: colors.outlineVariant,
-                    true: colors.primaryContainer,
-                  }}
-                  value={envFilters[filter.id] ?? false}
-                />
-              </View>
-            );
-          })}
-        </View>
+                {originLoading ? (
+                  <ActivityIndicator color={colors.primary} size="small" />
+                ) : (
+                  <MaterialIcons name="my-location" size={22} color={colors.primary} />
+                )}
+              </Pressable>
+              <TextInput
+                value={origin}
+                onChangeText={(text) => {
+                  setOrigin(text);
+                  setLocationError(null);
+                  if (!text.trim()) setOriginCoords(null);
+                }}
+                placeholder="Mi ubicación"
+                style={[styles.input, { fontFamily: fontRegular, color: colors.onSurface }]}
+                placeholderTextColor={colors.onSurfaceVariant}
+              />
+            </View>
 
-        <View style={styles.sectionHeader}>
-          <MaterialIcons name="accessible" size={22} color={colors.primary} />
-          <Text style={[styles.sectionTitle, { fontFamily: fontBold, color: colors.onSurface }]}>
-            Soporte de Movilidad
-          </Text>
-        </View>
+            {locationError ? (
+              <Text style={[styles.errorText, { fontFamily: fontRegular, color: colors.error }]}>
+                {locationError}
+              </Text>
+            ) : null}
 
-        <View
-          style={[
-            styles.block,
-            {
-              backgroundColor: colors.surfaceContainerLowest,
-              borderColor: colors.outlineVariant,
-            },
-          ]}
-        >
-          <View style={[styles.mobilityRow, { gap: spacing.gutter }]}>
-            {mobilityPrimary.map((item) => {
-              const selected = mobilityId === item.id;
-              const bg =
-                selected
-                  ? item.id === 'cane'
-                    ? (MOBILITY_ACCENT.cane ?? colors.secondary)
-                    : colors.primary
-                  : colors.surfaceContainerHigh;
-              const label =
-                item.id === 'wheelchair' ? 'SILLA DE RUEDAS' : 'BASTÓN';
-              return (
-                <Pressable
-                  key={item.id}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => setMobilityId(item.id)}
-                  style={[
-                    styles.mobilityTile,
-                    { backgroundColor: bg, borderColor: selected ? bg : colors.outlineVariant },
-                    selected && shadows.sm,
-                  ]}
-                >
-                  <MaterialIcons
-                    name={item.icon}
-                    size={36}
-                    color={selected ? '#ffffff' : colors.onSurfaceVariant}
-                  />
-                  <Text
-                    style={[
-                      styles.mobilityTileLabel,
-                      {
-                        fontFamily: fontBold,
-                        color: selected ? '#ffffff' : colors.onSurfaceVariant,
-                      },
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+            {originCoords ? (
+              <Text style={[styles.coordsHint, { fontFamily: fontRegular, color: gray }]}>
+                GPS: {originCoords.lat.toFixed(5)}, {originCoords.lng.toFixed(5)}
+              </Text>
+            ) : null}
 
-          {mobilitySecondary.length > 0 ? (
-            <View style={[styles.mobilitySecondaryRow, { gap: spacing.gutter }]}>
-              {mobilitySecondary.map((item) => {
-                const selected = mobilityId === item.id;
+            <View
+              style={[
+                styles.searchBar,
+                { backgroundColor: colors.surfaceContainerLow, borderColor: colors.outlineVariant },
+              ]}
+            >
+              <MaterialIcons name="search" size={22} color={colors.primary} />
+              <TextInput
+                value={destination}
+                onChangeText={setDestination}
+                placeholder="¿A dónde vas?"
+                style={[styles.input, { fontFamily: fontRegular, color: colors.onSurface }]}
+                placeholderTextColor={colors.onSurfaceVariant}
+                onSubmitEditing={handleDestinationSubmit}
+                onBlur={handleDestinationSubmit}
+              />
+            </View>
+
+            <Pressable
+              onPress={handleSearch}
+              disabled={!canSearch}
+              style={[
+                styles.searchBtn,
+                {
+                  backgroundColor: canSearch ? colors.primary : colors.surfaceContainerHigh,
+                  opacity: canSearch ? 1 : 0.6,
+                },
+              ]}
+            >
+              <MaterialIcons name="directions" size={22} color={colors.onPrimary} />
+              <Text style={[styles.searchBtnText, { fontFamily: fontBold, color: colors.onPrimary }]}>
+                Buscar rutas
+              </Text>
+            </Pressable>
+
+            {!canSearch ? (
+              <Text style={[styles.hintText, { fontFamily: fontRegular, color: gray }]}>
+                {!hasOrigin
+                  ? 'Toca el icono de ubicación o escribe tu punto de partida.'
+                  : 'Escribe un destino para habilitar la búsqueda.'}
+              </Text>
+            ) : null}
+
+            <View style={styles.sectionHeader}>
+              <MaterialIcons name="filter-list" size={22} color={colors.primary} />
+              <Text style={[styles.sectionTitle, { fontFamily: fontBold, color: colors.primary }]}>
+                Filtros Ambientales
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.block,
+                { backgroundColor: colors.surfaceContainerLowest, borderColor: colors.outlineVariant },
+              ]}
+            >
+              {ENV_FILTERS.map((filter) => {
+                const meta = getEnvMeta(filter.id, filter.label, filter.icon);
                 return (
-                  <Pressable
-                    key={item.id}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    onPress={() => setMobilityId(item.id)}
-                    style={[
-                      styles.mobilityChip,
-                      {
-                        borderColor: selected ? colors.primary : colors.outlineVariant,
-                        backgroundColor: selected
-                          ? colors.selectedSurface
-                          : colors.surfaceContainerLow,
-                      },
-                    ]}
+                  <View
+                    key={filter.id}
+                    style={[styles.filterRow, { borderBottomColor: colors.outlineVariant }]}
                   >
-                    <MaterialIcons
-                      name={item.icon}
-                      size={20}
-                      color={selected ? colors.primary : gray}
+                    <View style={[styles.filterIconBox, { backgroundColor: meta.accent }]}>
+                      <MaterialIcons name={meta.icon} size={24} color="#ffffff" />
+                    </View>
+                    <View style={styles.filterTextWrap}>
+                      <Text style={[styles.filterTitle, { fontFamily: fontBold, color: colors.onSurface }]}>
+                        {meta.title}
+                      </Text>
+                      <Text style={[styles.filterSubtitle, { fontFamily: fontRegular, color: gray }]}>
+                        {meta.subtitle}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={envFilters[filter.id] ?? false}
+                      onValueChange={(value) => toggleEnvFilter(filter.id, value)}
+                      thumbColor={envFilters[filter.id] ? colors.primary : '#f4f3f4'}
+                      trackColor={{ false: colors.outlineVariant, true: colors.primaryContainer }}
                     />
-                    <Text
-                      style={[
-                        styles.mobilityChipLabel,
-                        {
-                          fontFamily: fontRegular,
-                          color: selected ? colors.primary : gray,
-                        },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {item.label}
-                    </Text>
-                  </Pressable>
+                  </View>
                 );
               })}
             </View>
-          ) : null}
-        </View>
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => onOpenExpert?.()}
-          style={[styles.expertBtn, { borderColor: colors.outlineVariant }]}
-        >
-          <MaterialIcons name="settings" size={20} color={colors.primary} />
-          <Text style={[styles.expertBtnText, { fontFamily: fontBold, color: colors.primary }]}>
-            Ajustes Avanzados (Expert Mode)
-          </Text>
-        </Pressable>
+            <View style={styles.sectionHeader}>
+              <MaterialIcons name="accessible" size={22} color={colors.primary} />
+              <Text style={[styles.sectionTitle, { fontFamily: fontBold, color: colors.onSurface }]}>
+                Soporte de Movilidad
+              </Text>
+            </View>
 
-        {showResults ? (
-          <View style={styles.resultsSection}>
+            <View
+              style={[
+                styles.block,
+                { backgroundColor: colors.surfaceContainerLowest, borderColor: colors.outlineVariant },
+              ]}
+            >
+              <View style={[styles.mobilityRow, { gap: spacing.gutter }]}>
+                {mobilityPrimary.map((item) => {
+                  const selected = mobilityId === item.id;
+                  const bg =
+                    selected
+                      ? item.id === 'cane'
+                        ? colors.secondary
+                        : colors.primary
+                      : colors.surfaceContainerHigh;
+                  const label = item.id === 'wheelchair' ? 'SILLA DE RUEDAS' : 'BASTÓN';
+                  return (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => setMobilityId(item.id)}
+                      style={[
+                        styles.mobilityTile,
+                        { backgroundColor: bg, borderColor: selected ? bg : colors.outlineVariant },
+                        selected && shadows.sm,
+                      ]}
+                    >
+                      <MaterialIcons
+                        name={item.icon}
+                        size={36}
+                        color={selected ? '#ffffff' : gray}
+                      />
+                      <Text
+                        style={[
+                          styles.mobilityTileLabel,
+                          { fontFamily: fontBold, color: selected ? '#ffffff' : gray },
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <Pressable
+              onPress={() => onOpenExpert?.()}
+              style={[styles.expertBtn, { borderColor: colors.outlineVariant }]}
+            >
+              <MaterialIcons name="settings" size={20} color={colors.primary} />
+              <Text style={[styles.expertBtnText, { fontFamily: fontBold, color: colors.primary }]}>
+                Ajustes Avanzados (Expert Mode)
+              </Text>
+            </Pressable>
+
+            {isHackathon ? (
+              <View style={[styles.hint, { borderColor: colors.outlineVariant }]}>
+                <Text style={[styles.hintText, { fontFamily: fontRegular, color: gray }]}>
+                  Modo cyber: compara ruta rápida vs. más accesible con puntuación en tiempo real.
+                </Text>
+              </View>
+            ) : null}
+
+            <Pressable onPress={handleSearch} disabled={!canSearch} style={styles.exploreCard}>
+              <ImageBackground
+                source={{ uri: EXPLORE_MAP_URI }}
+                style={styles.exploreImage}
+                imageStyle={styles.exploreImageInner}
+              >
+                <View style={styles.exploreOverlay} />
+                <Text style={[styles.exploreText, { fontFamily: fontBold }]}>
+                  Explorar Rutas Seguras en Tu Área
+                </Text>
+              </ImageBackground>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Pressable
+              onPress={() => onOpenExpert?.()}
+              style={[
+                styles.expertBtn,
+                { backgroundColor: colors.surfaceContainer, borderColor: colors.outlineVariant },
+              ]}
+            >
+              <MaterialIcons name="settings" size={20} color={colors.primary} />
+              <Text style={[styles.expertBtnText, { fontFamily: fontRegular, color: colors.primary }]}>
+                Ajustes Avanzados (Expert Mode)
+              </Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.primary} />
+            </Pressable>
             {ROUTE_OPTIONS.map((route) => (
               <RouteOptionCard
                 key={route.id}
                 route={route}
-                selected={selectedRouteId === route.id}
-                onSelect={() => setSelectedRouteId(route.id)}
+                selected={selectedId === route.id}
+                onSelect={() => setSelectedId(route.id)}
                 onChoose={() => onOpenDetail?.()}
               />
             ))}
-            <Pressable onPress={() => setShowResults(false)} style={styles.backLink}>
+            <Pressable onPress={() => setStep('search')} style={styles.backLink}>
               <MaterialIcons name="arrow-back" size={18} color={colors.primary} />
               <Text style={[styles.backText, { fontFamily: fontRegular, color: colors.primary }]}>
-                Volver a preferencias
+                Cambiar destino
               </Text>
             </Pressable>
-          </View>
-        ) : null}
-
-        <Pressable
-          accessibilityRole="button"
-          onPress={handleSearch}
-          style={styles.exploreCard}
-        >
-          <ImageBackground
-            source={{ uri: EXPLORE_MAP_URI }}
-            style={styles.exploreImage}
-            imageStyle={styles.exploreImageInner}
-          >
-            <View style={styles.exploreOverlay} />
-            <Text style={[styles.exploreText, { fontFamily: fontBold }]}>
-              Explorar Rutas Seguras en Tu Área
-            </Text>
-          </ImageBackground>
-        </Pressable>
+          </>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -335,8 +403,17 @@ export function PlanearScreen({ onOpenDetail, onOpenExpert }: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  scroll: {
-    gap: 0,
+  scroll: { gap: 0 },
+  field: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    marginBottom: 12,
+    minHeight: 52,
   },
   searchBar: {
     flexDirection: 'row',
@@ -344,28 +421,46 @@ const styles = StyleSheet.create({
     gap: 10,
     borderWidth: 1,
     borderRadius: radii.sm,
+    paddingHorizontal: 14,
     minHeight: 52,
-    marginBottom: 20,
+    marginBottom: 12,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    paddingVertical: 12,
+  locationBtn: { padding: 4, minWidth: 30, alignItems: 'center' },
+  input: { flex: 1, fontSize: 16, paddingVertical: 12 },
+  errorText: { fontSize: 13, marginTop: -8, marginBottom: 8, lineHeight: 18 },
+  coordsHint: { fontSize: 11, marginTop: -8, marginBottom: 10 },
+  searchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: radii.md,
+    marginBottom: 16,
+  },
+  searchBtnText: { fontSize: 16 },
+  hintText: { fontSize: 13, lineHeight: 20, marginBottom: 8 },
+  hint: {
+    marginTop: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    borderStyle: 'dashed',
+    marginBottom: 12,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginBottom: 12,
+    marginTop: 4,
   },
-  sectionTitle: {
-    fontSize: 18,
-  },
+  sectionTitle: { fontSize: 18 },
   block: {
     borderWidth: 1,
     borderRadius: radii.md,
     overflow: 'hidden',
-    marginBottom: 20,
+    marginBottom: 16,
     ...shadows.sm,
   },
   filterRow: {
@@ -383,22 +478,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filterTextWrap: {
-    flex: 1,
-    gap: 2,
-    minWidth: 0,
-  },
-  filterTitle: {
-    fontSize: 15,
-  },
-  filterSubtitle: {
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  mobilityRow: {
-    flexDirection: 'row',
-    padding: 14,
-  },
+  filterTextWrap: { flex: 1, gap: 2, minWidth: 0 },
+  filterTitle: { fontSize: 15 },
+  filterSubtitle: { fontSize: 12, lineHeight: 17 },
+  mobilityRow: { flexDirection: 'row', padding: 14 },
   mobilityTile: {
     flex: 1,
     minHeight: 120,
@@ -408,78 +491,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     paddingVertical: 16,
-    paddingHorizontal: 8,
   },
-  mobilityTileLabel: {
-    fontSize: 11,
-    letterSpacing: 0.6,
-    textAlign: 'center',
-  },
-  mobilitySecondaryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 14,
-    paddingBottom: 14,
-  },
-  mobilityChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderRadius: radii.pill,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    maxWidth: '48%',
-  },
-  mobilityChipLabel: {
-    fontSize: 12,
-    flexShrink: 1,
-  },
+  mobilityTileLabel: { fontSize: 11, letterSpacing: 0.6, textAlign: 'center' },
   expertBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     borderWidth: 1,
-    borderRadius: radii.md,
-    paddingVertical: 14,
-    marginBottom: 20,
-  },
-  expertBtnText: {
-    fontSize: 15,
-  },
-  resultsSection: {
+    borderRadius: radii.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     marginBottom: 16,
-    gap: 4,
   },
-  backLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
-  backText: {
-    fontSize: 15,
-  },
-  exploreCard: {
-    borderRadius: radii.md,
-    overflow: 'hidden',
-    minHeight: 180,
-    ...shadows.md,
-  },
-  exploreImage: {
-    flex: 1,
-    minHeight: 180,
-    justifyContent: 'flex-end',
-  },
-  exploreImageInner: {
-    borderRadius: radii.md,
-  },
-  exploreOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 26, 64, 0.52)',
-  },
+  expertBtnText: { flex: 1, fontSize: 15, textAlign: 'center' },
+  exploreCard: { borderRadius: radii.md, overflow: 'hidden', minHeight: 180, ...shadows.md },
+  exploreImage: { flex: 1, minHeight: 180, justifyContent: 'flex-end' },
+  exploreImageInner: { borderRadius: radii.md },
+  exploreOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 26, 64, 0.52)' },
   exploreText: {
     fontSize: 20,
     color: '#ffffff',
@@ -487,4 +516,6 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     maxWidth: '85%',
   },
+  backLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, paddingVertical: 8 },
+  backText: { fontSize: 15 },
 });

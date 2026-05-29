@@ -9,9 +9,6 @@ export type FeedItem = {
   location?: string;
   tags?: string[];
   offline?: boolean;
-  status?: 'reportado' | 'en_revision' | 'solucionado';
-  imageUrl?: string;
-  zoneName?: string;
 };
 
 export const FEED_ITEMS: FeedItem[] = [
@@ -26,9 +23,6 @@ export const FEED_ITEMS: FeedItem[] = [
     location: 'Centro',
     tags: ['Acera', 'Parcial'],
     offline: true,
-    status: 'reportado',
-    zoneName: 'ZONA RÍO',
-    imageUrl: 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=200',
   },
   {
     id: '2',
@@ -40,9 +34,6 @@ export const FEED_ITEMS: FeedItem[] = [
     author: '@ruta_libre',
     location: 'Zona Río',
     tags: ['Verificado', 'Rampas'],
-    status: 'en_revision',
-    zoneName: 'ZONA RÍO',
-    imageUrl: 'https://images.unsplash.com/photo-1509822929063-6b6cfc9b42f2?w=200',
   },
   {
     id: '3',
@@ -51,9 +42,6 @@ export const FEED_ITEMS: FeedItem[] = [
     confirmations: 7,
     timeAgo: 'Hace 1 d',
     type: 'barrier',
-    status: 'solucionado',
-    zoneName: 'OTAY CENTENARIO',
-    imageUrl: 'https://images.unsplash.com/photo-1584467735867-4297ae2ebcee?w=200',
   },
   {
     id: '4',

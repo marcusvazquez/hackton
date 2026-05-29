@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -15,6 +16,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { useMapLocation } from '../context/MapLocationContext';
 import { SEARCH_SUGGESTIONS } from '../data/markers';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { spacing } from '../theme/colors';
@@ -23,6 +25,7 @@ import { radii, shadows } from '../theme/shadows';
 export function SearchBar() {
   const { reduceMotion } = useAccessibility();
   const { colors, glass, fontRegular } = useAppTheme();
+  const { geocodeAndFly, locateUser, locationLoading } = useMapLocation();
   const [focused, setFocused] = useState(false);
   const [query, setQuery] = useState('');
   const borderProgress = useSharedValue(0);
@@ -67,6 +70,26 @@ export function SearchBar() {
     opacity: placeholderOpacity.value,
   }));
 
+  const handleSelectSuggestion = async (item: string) => {
+    setQuery(item);
+    setFocused(false);
+    await geocodeAndFly(item);
+  };
+
+  const handleLocatePress = async () => {
+    try {
+      await locateUser();
+    } catch {
+      // error surfaced via context if needed
+    }
+  };
+
+  const handleSearchSubmit = async () => {
+    if (!query.trim()) return;
+    await geocodeAndFly(query.trim());
+    setFocused(false);
+  };
+
   return (
     <View style={styles.wrapper}>
       <Animated.View
@@ -76,14 +99,28 @@ export function SearchBar() {
           containerStyle,
         ]}
       >
-        <MaterialIcons name="location-on" size={24} color={colors.primary} style={styles.leadingIcon} />
+        <Pressable
+          accessibilityLabel="Centrar mapa en mi ubicación"
+          accessibilityRole="button"
+          disabled={locationLoading}
+          onPress={handleLocatePress}
+          style={styles.leadingIcon}
+        >
+          {locationLoading ? (
+            <ActivityIndicator color={colors.primary} size="small" />
+          ) : (
+            <MaterialIcons name="my-location" size={24} color={colors.primary} />
+          )}
+        </Pressable>
         <View style={styles.inputWrap}>
           <TextInput
             accessibilityLabel="Buscar destino"
             onBlur={() => setFocused(false)}
             onChangeText={setQuery}
             onFocus={() => setFocused(true)}
+            onSubmitEditing={handleSearchSubmit}
             placeholder=""
+            returnKeyType="search"
             style={[styles.input, { fontFamily: fontRegular, color: colors.onSurface }]}
             value={query}
           />
@@ -99,7 +136,11 @@ export function SearchBar() {
         <Pressable accessibilityLabel="Búsqueda por voz" style={styles.iconBtn}>
           <MaterialIcons name="mic" size={24} color={colors.primary} />
         </Pressable>
-        <Pressable style={[styles.directionsBtn, { backgroundColor: colors.primary }]}>
+        <Pressable
+          accessibilityLabel="Buscar y centrar destino en el mapa"
+          onPress={handleSearchSubmit}
+          style={[styles.directionsBtn, { backgroundColor: colors.primary }]}
+        >
           <MaterialIcons name="directions" size={24} color={colors.onPrimary} />
         </Pressable>
       </Animated.View>
@@ -125,10 +166,7 @@ export function SearchBar() {
               }
             >
               <Pressable
-                onPress={() => {
-                  setQuery(item);
-                  setFocused(false);
-                }}
+                onPress={() => handleSelectSuggestion(item)}
                 style={[styles.suggestionRow, { borderBottomColor: colors.outlineVariant }]}
               >
                 <MaterialIcons name="place" size={18} color={colors.outline} />
@@ -162,6 +200,9 @@ const styles = StyleSheet.create({
   },
   leadingIcon: {
     marginLeft: 4,
+    padding: 4,
+    minWidth: 32,
+    alignItems: 'center',
   },
   inputWrap: {
     flex: 1,

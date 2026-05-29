@@ -25,7 +25,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Ruta Libre usa tu ubicación para planear rutas accesibles en Tijuana."
+        }
+      ]
     ],
     "extra": {
       "expoGoSdkVersion": "54.0.0"

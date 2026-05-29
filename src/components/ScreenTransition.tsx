@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useAnimations } from '../hooks/useAnimations';
 
@@ -11,10 +11,12 @@ type Props = {
 export function ScreenTransition({ screenKey, children }: Props) {
   const { screenEnter } = useAnimations();
 
+  const entering = Platform.OS === 'web' ? undefined : screenEnter;
+
   return (
     <Animated.View
       key={screenKey}
-      entering={screenEnter}
+      entering={entering}
       style={styles.container}
     >
       {children}
