@@ -107,9 +107,16 @@ export async function forwardGeocode(
 export const PLACE_COORDINATES: Record<string, { lat: number; lng: number }> = {
   'Centro de Tijuana': { lat: 32.5339, lng: -117.0382 },
   'Plaza Río': { lat: 32.5256, lng: -117.0128 },
-  'Zona Río': { lat: 32.525, lng: -117.018 },
-  'Av. Revolución': { lat: 32.5367, lng: -117.0384 },
+  'Zona Río': { lat: 32.5302, lng: -117.0225 },
+  'Av. Revolución': { lat: 32.5354, lng: -117.0382 },
   Macroplaza: { lat: 32.5312, lng: -117.0195 },
+  'CRIT Otay': { lat: 32.5189, lng: -116.9458 },
+  'Calle 2da': { lat: 32.533, lng: -117.0395 },
+  'Playas de Tijuana': { lat: 32.533, lng: -117.118 },
+  'La Mesa': { lat: 32.492, lng: -116.962 },
+  'San Ysidro': { lat: 32.548, lng: -117.038 },
+  'Plaza 2000': { lat: 32.4522, lng: -116.8258 },
+  'La Presa Este': { lat: 32.455, lng: -116.827 },
 };
 
 export function resolvePlaceCoordinates(

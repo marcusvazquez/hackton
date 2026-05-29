@@ -10,6 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { useMapLocation } from '../context/MapLocationContext';
 import { getVoiceHint } from '../data/personTypes';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { spacing } from '../theme/colors';
@@ -18,7 +19,9 @@ import { radii, shadows } from '../theme/shadows';
 
 export function VoiceAssistantCard() {
   const { reduceMotion, personType } = useAccessibility();
+  const { talkbackText } = useMapLocation();
   const { colors, glass, fontBold, fontRegular, isHackathon } = useAppTheme();
+  const voiceMessage = talkbackText || getVoiceHint(personType);
   const pingScale = useSharedValue(1);
   const pingOpacity = useSharedValue(0.2);
 
@@ -77,7 +80,7 @@ export function VoiceAssistantCard() {
         >
           <MaterialIcons name="volume-up" size={22} color={colors.onSurfaceVariant} />
           <Text style={[styles.message, { fontFamily: fontRegular, color: colors.onSurface }]}>
-            {getVoiceHint(personType)}
+            "{voiceMessage}"
           </Text>
         </View>
       </View>

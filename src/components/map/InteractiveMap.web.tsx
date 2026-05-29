@@ -4,12 +4,28 @@ import {
   DARK_TILE_URL,
   DEFAULT_MAP_ZOOM,
   TILE_ATTRIBUTION,
-  TIJUANA_CENTER,
 } from '../../constants/map';
 import { useMapLocation } from '../../context/MapLocationContext';
+import {
+  DEFAULT_MAP_CENTER,
+  getAllTijuanaMapPoints,
+  getTijuanaMetroBounds,
+  tijuanaTroncalRoutes,
+} from '../../data/tijuanaRoutesDB';
 import { MAP_INCIDENTS } from '../../data/mapIncidents';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { createIncidentIcon, createUserLocationIcon } from './mapLeafletIcons';
+import {
+  getCircleMarkerOptions,
+  getIncidentCircleOptions,
+} from './mapLeafletIcons';
+import {
+  MAP_POPUP_CSS,
+  bindInteractivePopup,
+  buildIncidentPopupHtml,
+  buildPointPopupHtml,
+  buildRoutePopupHtml,
+  buildUserLocationPopupHtml,
+} from './mapPopup';
 
 const LEAFLET_CSS_ID = 'ruta-libre-leaflet-css';
 const LEAFLET_CDN_CSS =
@@ -20,28 +36,7 @@ const leafletOverrides = `
   background: #0d1117;
   font-family: system-ui, -apple-system, sans-serif;
 }
-.ruta-libre-incident-icon,
-.ruta-libre-user-icon {
-  background: transparent !important;
-  border: none !important;
-}
-.leaflet-popup-content-wrapper {
-  background: #1a2332;
-  color: #e8edf5;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 229, 255, 0.25);
-}
-.leaflet-popup-tip { background: #1a2332; }
-.leaflet-popup-content {
-  margin: 12px 14px;
-  font-size: 14px;
-  line-height: 1.45;
-}
-.leaflet-popup-content b {
-  color: #00e5ff;
-  display: block;
-  margin-bottom: 4px;
-}
+${MAP_POPUP_CSS}
 `;
 
 function ensureLeafletStyles() {
@@ -63,7 +58,6 @@ function ensureLeafletStyles() {
   }
 }
 
-/** Contenedor DOM real para Leaflet (solo web). */
 function MapDiv({
   containerRef,
 }: {
@@ -86,9 +80,13 @@ function MapDiv({
 export function InteractiveMap() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<import('leaflet').Map | null>(null);
-  const incidentMarkersRef = useRef<import('leaflet').Marker[]>([]);
-  const userMarkerRef = useRef<import('leaflet').Marker | null>(null);
-  const { userLocation, flyTarget } = useMapLocation();
+  const layersRef = useRef<{
+    incidents: import('leaflet').CircleMarker[];
+    points: import('leaflet').CircleMarker[];
+    polylines: import('leaflet').Polyline[];
+  }>({ incidents: [], points: [], polylines: [] });
+  const userMarkerRef = useRef<import('leaflet').CircleMarker | null>(null);
+  const { userLocation, userAddress, flyTarget } = useMapLocation();
   const { colors, fontRegular } = useAppTheme();
   const [mapError, setMapError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -106,7 +104,7 @@ export function InteractiveMap() {
         if (disposed || !containerRef.current || mapRef.current) return;
 
         const map = L.map(containerRef.current, {
-          center: [TIJUANA_CENTER.lat, TIJUANA_CENTER.lng],
+          center: [DEFAULT_MAP_CENTER.lat, DEFAULT_MAP_CENTER.lng],
           zoom: DEFAULT_MAP_ZOOM,
           scrollWheelZoom: true,
           doubleClickZoom: true,
@@ -117,15 +115,57 @@ export function InteractiveMap() {
 
         L.tileLayer(DARK_TILE_URL, { attribution: TILE_ATTRIBUTION }).addTo(map);
 
-        incidentMarkersRef.current = MAP_INCIDENTS.map((incident) => {
-          const marker = L.marker([incident.lat, incident.lng], {
-            icon: createIncidentIcon(L, incident.type),
-          });
-          marker.bindPopup(
-            `<b>${incident.title}</b><br/>${incident.description}`,
+        layersRef.current.polylines = tijuanaTroncalRoutes.map((route) => {
+          const line = L.polyline(
+            route.coordinates.map((pt) => [pt.lat, pt.lng] as [number, number]),
+            {
+              color: route.color,
+              weight: 6,
+              opacity: 0.85,
+              interactive: true,
+            },
+          ).addTo(map);
+          bindInteractivePopup(
+            line,
+            buildRoutePopupHtml(route),
+            route.name,
+          );
+          return line;
+        });
+
+        const pointsLayer = L.layerGroup().addTo(map);
+
+        layersRef.current.points = getAllTijuanaMapPoints().map((point) => {
+          const marker = L.circleMarker(
+            [point.lat, point.lng],
+            getCircleMarkerOptions(point.type, point.category),
+          );
+          bindInteractivePopup(
+            marker,
+            buildPointPopupHtml(point),
+            point.title,
+          );
+          marker.addTo(pointsLayer);
+          return marker;
+        });
+
+        layersRef.current.incidents = MAP_INCIDENTS.map((incident) => {
+          const marker = L.circleMarker(
+            [incident.lat, incident.lng],
+            getIncidentCircleOptions(incident.type),
+          );
+          bindInteractivePopup(
+            marker,
+            buildIncidentPopupHtml(incident),
+            incident.title,
           );
           marker.addTo(map);
           return marker;
+        });
+
+        map.fitBounds(getTijuanaMetroBounds(), {
+          padding: [40, 40],
+          maxZoom: 12,
         });
 
         mapRef.current = map;
@@ -145,8 +185,10 @@ export function InteractiveMap() {
     return () => {
       disposed = true;
       clearTimeout(timer);
-      incidentMarkersRef.current.forEach((m) => m.remove());
-      incidentMarkersRef.current = [];
+      layersRef.current.incidents.forEach((m) => m.remove());
+      layersRef.current.points.forEach((m) => m.remove());
+      layersRef.current.polylines.forEach((p) => p.remove());
+      layersRef.current = { incidents: [], points: [], polylines: [] };
       userMarkerRef.current?.remove();
       userMarkerRef.current = null;
       mapRef.current?.remove();
@@ -157,9 +199,11 @@ export function InteractiveMap() {
 
   useEffect(() => {
     if (!flyTarget || !mapRef.current) return;
-    mapRef.current.flyTo([flyTarget.lat, flyTarget.lng], flyTarget.zoom ?? DEFAULT_MAP_ZOOM, {
-      duration: 1.2,
-    });
+    mapRef.current.flyTo(
+      [flyTarget.lat, flyTarget.lng],
+      flyTarget.zoom ?? DEFAULT_MAP_ZOOM,
+      { duration: 1.5, easeLinearity: 0.25 },
+    );
   }, [flyTarget]);
 
   useEffect(() => {
@@ -170,21 +214,34 @@ export function InteractiveMap() {
       const L = (await import('leaflet')).default;
 
       if (userLocation) {
+        const popupHtml = buildUserLocationPopupHtml(userAddress);
         if (!userMarkerRef.current) {
-          userMarkerRef.current = L.marker([userLocation.lat, userLocation.lng], {
-            icon: createUserLocationIcon(L),
-          })
-            .addTo(map)
-            .bindPopup('<b>Tu ubicación</b><br/>Posición actual');
+          userMarkerRef.current = L.circleMarker(
+            [userLocation.lat, userLocation.lng],
+            {
+              radius: 11,
+              fillColor: '#00e5ff',
+              color: '#ffffff',
+              weight: 3,
+              fillOpacity: 1,
+              interactive: true,
+            },
+          ).addTo(map);
+          bindInteractivePopup(
+            userMarkerRef.current,
+            popupHtml,
+            'Tu ubicación',
+          );
         } else {
           userMarkerRef.current.setLatLng([userLocation.lat, userLocation.lng]);
+          userMarkerRef.current.setPopupContent(popupHtml);
         }
       } else {
         userMarkerRef.current?.remove();
         userMarkerRef.current = null;
       }
     })();
-  }, [userLocation, mapReady]);
+  }, [userLocation, userAddress, mapReady]);
 
   if (mapError) {
     return (

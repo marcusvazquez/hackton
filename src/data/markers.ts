@@ -37,8 +37,14 @@ export const MARKERS: MapMarkerData[] = [
 
 export const SEARCH_SUGGESTIONS = [
   'Centro de Tijuana',
-  'Plaza Río',
-  'Zona Río',
   'Av. Revolución',
+  'Zona Río',
+  'CRIT Otay',
+  'Playas de Tijuana',
+  'La Mesa',
   'Macroplaza',
+  'San Ysidro',
+  'Plaza 2000',
+  'La Presa Este',
+  'Calle 2da',
 ];

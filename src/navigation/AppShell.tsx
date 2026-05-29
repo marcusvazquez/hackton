@@ -7,6 +7,8 @@ import { HackathonBackdrop } from '../components/HackathonBackdrop';
 import { NetStatusBanner } from '../components/NetStatusBanner';
 import { ScreenTransition } from '../components/ScreenTransition';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { useMapLocation } from '../context/MapLocationContext';
+import { FeedItem } from '../data/community';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { CommunityScreen } from '../screens/CommunityScreen';
 import { MapScreen } from '../screens/MapScreen';
@@ -18,6 +20,7 @@ import { OverlayLayer } from './OverlayLayer';
 export function AppShell() {
   const { talkBackEnabled } = useAccessibility();
   const { colors, isHackathon } = useAppTheme();
+  const { flyTo } = useMapLocation();
   const [activeTab, setActiveTab] = useState<TabId>('mapa');
   const [overlay, setOverlay] = useState<OverlayId | null>(null);
 
@@ -53,7 +56,12 @@ export function AppShell() {
       case 'reportar':
         return <ReportScreen onReportSuccess={handleReportSuccess} />;
       case 'comunidad':
-        return <CommunityScreen onGoToReport={() => setActiveTab('reportar')} />;
+        return (
+          <CommunityScreen
+            onGoToReport={() => setActiveTab('reportar')}
+            onViewOnMap={handleViewFeedOnMap}
+          />
+        );
       default:
         return null;
     }
