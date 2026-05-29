@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -13,6 +13,7 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { spacing } from '../theme/colors';
 import { radii, shadows } from '../theme/shadows';
 import { TAB_LABELS, TAB_ORDER, TabId } from '../types/navigation';
+import { playNavigationSound } from '../utils/talkbackSounds';
 
 type Props = {
   activeTab: TabId;
@@ -107,7 +108,7 @@ function TabButton({
 
 export function BottomNav({ activeTab, onTabChange }: Props) {
   const insets = useSafeAreaInsets();
-  const { reduceMotion } = useAccessibility();
+  const { reduceMotion, talkBackEnabled, speak } = useAccessibility();
   const { colors, glass, isHackathon, fontBold } = useAppTheme();
   const { navEase } = useAnimations();
   const activeIndex = TAB_ORDER.indexOf(activeTab);
@@ -118,6 +119,17 @@ export function BottomNav({ activeTab, onTabChange }: Props) {
       ? activeIndex * TAB_WIDTH
       : withTiming(activeIndex * TAB_WIDTH, { duration: 300, easing: navEase });
   }, [activeIndex, indicatorX, navEase, reduceMotion]);
+
+  const handleTabChange = useCallback(
+    (tab: TabId) => {
+      onTabChange(tab);
+      if (talkBackEnabled) {
+        playNavigationSound();
+        void speak(`Pestaña ${TAB_LABELS[tab]} seleccionada`);
+      }
+    },
+    [onTabChange, talkBackEnabled, speak],
+  );
 
   const indicatorStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: indicatorX.value }],
@@ -144,7 +156,7 @@ export function BottomNav({ activeTab, onTabChange }: Props) {
               key={tab}
               tab={tab}
               isActive={activeTab === tab}
-              onPress={() => onTabChange(tab)}
+              onPress={() => handleTabChange(tab)}
               activeColor={colors.primary}
               inactiveColor={colors.onSurfaceVariant}
               fontBold={fontBold}

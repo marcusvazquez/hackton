@@ -25,6 +25,7 @@ export function ProfileScreen({ onBack }: Props) {
     talkBackEnabled,
     setTalkBackEnabled,
     reduceMotion,
+    systemReduceMotion,
     personType,
     setPersonType,
     resetOnboarding,
@@ -39,8 +40,8 @@ export function ProfileScreen({ onBack }: Props) {
   const storagePct = Math.round((STORAGE_USED_MB / STORAGE_TOTAL_MB) * 100);
 
   const handleToggle = (value: boolean) => {
-    if (reduceMotion) {
-      setTalkBackEnabled(value);
+    setTalkBackEnabled(value);
+    if (systemReduceMotion) {
       return;
     }
     setPendingValue(value);
@@ -48,10 +49,7 @@ export function ProfileScreen({ onBack }: Props) {
   };
 
   const handleOverlayDone = () => {
-    if (pendingValue !== null) {
-      setTalkBackEnabled(pendingValue);
-      setPendingValue(null);
-    }
+    setPendingValue(null);
     setShowOverlay(false);
   };
 
@@ -137,7 +135,7 @@ export function ProfileScreen({ onBack }: Props) {
                   },
                 ]}
               >
-                Alto contraste, bordes visibles y sin animaciones
+                Alto contraste, lectura en voz alta y sin animaciones
               </Text>
             </View>
           </View>
@@ -207,7 +205,7 @@ export function ProfileScreen({ onBack }: Props) {
           </Pressable>
         </View>
 
-        {isHackathon && !talkBackEnabled ? (
+        {!talkBackEnabled ? (
           <>
             <SectionHeader
               title="Gestión offline"

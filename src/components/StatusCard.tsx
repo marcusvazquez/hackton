@@ -64,7 +64,14 @@ export function StatusCard({ onPressVer }: Props) {
             2 barreras reportadas cerca de ti.
           </Text>
         </View>
-        <Pressable onPress={handlePress} style={[styles.verButton, { backgroundColor: colors.secondary }]}>
+        <Pressable 
+          accessible={true}
+          importantForAccessibility="yes"
+          accessibilityRole="button"
+          accessibilityLabel="Ver 2 barreras reportadas cerca de ti en Zona Centro"
+          onPress={handlePress} 
+          style={[styles.verButton, { backgroundColor: colors.secondary }]}
+        >
           <Text style={[styles.verText, { fontFamily: fontBold, color: colors.onSecondary }]}>Ver</Text>
           <MaterialIcons name="chevron-right" size={20} color={colors.onSecondary} />
         </Pressable>
@@ -78,40 +85,40 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: mapOverlay.statusCardBottom,
     left: spacing.edge,
-    right: spacing.edge,
+    right: 90,
     zIndex: 20,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
     borderWidth: 1,
     borderRadius: radii.xl,
-    padding: 18,
+    padding: 12,
   },
   iconCircle: {
-    padding: 12,
+    padding: 10,
     borderRadius: 999,
   },
   content: {
     flex: 1,
   },
   title: {
-    fontSize: 20,
+    fontSize: 16,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 13,
     marginTop: 2,
   },
   verButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48,
-    paddingHorizontal: 16,
+    height: 44,
+    paddingHorizontal: 12,
     borderRadius: radii.md,
     gap: 2,
   },
   verText: {
-    fontSize: 18,
+    fontSize: 16,
   },
 });

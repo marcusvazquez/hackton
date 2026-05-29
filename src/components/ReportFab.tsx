@@ -60,7 +60,11 @@ export function ReportFab({ onPress }: Props) {
   return (
     <Animated.View entering={fabEnter} style={styles.wrapper}>
       <Pressable
+        accessible={true}
+        importantForAccessibility="yes"
+        accessibilityRole="button"
         accessibilityLabel="Reportar obstáculo"
+        accessibilityHint="Abre la pantalla para reportar barreras en tu ruta"
         onPress={handlePress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -107,7 +111,7 @@ function Ripple() {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    bottom: mapOverlay.fabBottom,
+    bottom: mapOverlay.reportFabBottom,
     right: spacing.edge,
     zIndex: 20,
   },
